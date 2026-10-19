@@ -156,6 +156,8 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const answered = questions.filter((q) => answers[q.question_no] !== undefined).length;
   const correct = questions.filter((q) => answers[q.question_no] === q.correct_answer).length;
   const onSummary = current >= questions.length;
+  const covers = useMemo(() => [...new Set([...questions.map((q) => coverFor(q.subject)), coverFor(info.organization)])], [questions, info.organization]);
+  const activeCover = onSummary ? coverFor(info.organization) : coverFor(questions[current].subject);
 
   const select = (questionNo: number, option: string) => setAnswers((prev) => ({ ...prev, [questionNo]: option }));
 
@@ -192,7 +194,9 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     <>
       <title>{`${info.exam_title} · Reels | Govt Job Prep`}</title>
 
-      <main className="bg-canvas text-label" aria-label="Question reels">
+      <FeedBackground covers={covers} active={activeCover} />
+
+      <main className="text-label" aria-label="Question reels">
         {questions.map((q, i) => (
           <ReelSlide
             key={q.question_no}
@@ -215,9 +219,8 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
           }}
           data-index={questions.length}
           aria-label="Results"
-          className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
+          className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center ${SLIDE_PADDING}`}
         >
-          <SoftWash cover={coverFor(info.organization)} />
           <SummaryCard mode={mode} total={questions.length} answered={answered} correct={correct} onReset={reset} onRestart={() => goTo(0)} />
         </section>
       </main>
@@ -260,9 +263,23 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   );
 }
 
-// A faint, see-through wash of the cover gradient over the theme background.
-function SoftWash({ cover }: { cover: string }) {
-  return <span aria-hidden="true" className={`absolute inset-0 bg-linear-to-br opacity-15 dark:opacity-25 ${cover}`} />;
+// The feed's background: the theme colour with a faint wash of the current subject's gradient. It is
+// fixed to the screen rather than drawn per slide, so while the browser bars resize the viewport (and a
+// slide sits a few pixels off) the strip under the top bar never shows the previous slide's colour.
+// Each subject's wash is stacked once and cross-fades in when its question comes up.
+function FeedBackground({ covers, active }: { covers: string[]; active: string }) {
+  return (
+    <div aria-hidden="true" className="fixed inset-0 -z-10 bg-canvas">
+      {covers.map((cover) => (
+        <span
+          key={cover}
+          className={`absolute inset-0 bg-linear-to-br transition-opacity duration-500 motion-reduce:transition-none ${cover} ${
+            cover === active ? "opacity-15 dark:opacity-25" : "opacity-0"
+          }`}
+        />
+      ))}
+    </div>
+  );
 }
 
 function ReelSlide({
@@ -293,9 +310,8 @@ function ReelSlide({
       ref={ref}
       data-index={index}
       aria-label={`Question ${formatNumber(index + 1)} of ${formatNumber(total)}`}
-      className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
+      className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center ${SLIDE_PADDING}`}
     >
-      <SoftWash cover={coverFor(q.subject)} />
 
       <article className="relative mx-auto w-full max-w-xl">
         <header className="flex items-center justify-between gap-3 text-[12px] font-semibold">
