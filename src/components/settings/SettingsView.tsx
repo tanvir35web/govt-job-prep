@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { formatNumber, pluralize } from "@/lib/format";
 import {
@@ -16,7 +17,7 @@ import { type Theme, clearAllAnswers, defaultModeSetting, themeSetting } from "@
 import type { ExamListResponse } from "@/lib/types";
 import { CURRENT_BUILD, type UpdateCheck, applyUpdate, checkForUpdate } from "@/lib/update";
 import { useApi } from "@/lib/use-api";
-import { BookOpenIcon, CircleCheckIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
+import { BookOpenIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { ButtonRow, CustomRow, Section, SwitchRow, ValueRow } from "./SettingsList";
 
@@ -35,6 +36,7 @@ export function SettingsView() {
       <OfflineSection />
       <UpdateSection />
       <InstallSection />
+      <DeveloperSection />
       <AboutFooter />
     </main>
   );
@@ -321,7 +323,59 @@ function InstallSection() {
   );
 }
 
-// ---- About
+// ---- Developer and about
+
+const DEVELOPER = {
+  name: "Tanvirul Islam",
+  role: "Software Engineer, Bangladesh",
+  website: "https://tanvir35.vercel.app/",
+  linkedin: "https://www.linkedin.com/in/tanvir-niter09/",
+  // 192px webp under /icons/, which the service worker caches, so the photo shows offline too.
+  photo: "/icons/developer.webp",
+};
+
+// One quiet card: photo, name and role, then two small link pills.
+function DeveloperSection() {
+  return (
+    <Section title="Developer">
+      <CustomRow>
+        <div className="flex items-center gap-3.5">
+          {/* Tint border with a small gap; the gap is padding, so it shows the card behind it in either theme.
+              The photo is already sized for the avatar, so it is served as is rather than through the image optimiser. */}
+          <span className="shrink-0 rounded-full p-0.5 ring-2 ring-tint">
+            <Image src={DEVELOPER.photo} alt={DEVELOPER.name} width={48} height={48} unoptimized className="block size-12 rounded-full object-cover" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-semibold">{DEVELOPER.name}</p>
+            <p className="truncate text-[13px] text-secondary">{DEVELOPER.role}</p>
+          </div>
+        </div>
+        <div className="mt-3.5 flex gap-2">
+          <DeveloperLink href={DEVELOPER.website} icon={<GlobeIcon className="size-4" />}>
+            Website
+          </DeveloperLink>
+          <DeveloperLink href={DEVELOPER.linkedin} icon={<LinkedInIcon className="size-4" />}>
+            LinkedIn
+          </DeveloperLink>
+        </div>
+      </CustomRow>
+    </Section>
+  );
+}
+
+function DeveloperLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="pressable inline-flex h-8 items-center gap-1.5 rounded-full bg-fill pr-3.5 pl-3 text-[13px] font-medium text-label"
+    >
+      <span className="text-secondary">{icon}</span>
+      {children}
+    </a>
+  );
+}
 
 function AboutFooter() {
   return (
@@ -330,7 +384,7 @@ function AboutFooter() {
         Version {formatNumber(CURRENT_BUILD.version)} · <span className="font-mono">{CURRENT_BUILD.buildId}</span>
         {CURRENT_BUILD.buildTime && <> · {formatDate(CURRENT_BUILD.buildTime)}</>}
       </p>
-      <p className="mt-1">Questions are compiled for educational purposes only.</p>
+      <p>Questions are compiled for educational purposes only.</p>
     </footer>
   );
 }

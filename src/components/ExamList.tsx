@@ -220,12 +220,69 @@ function SummaryCard({ exams, progress, savedCount }: { exams: ExamListItem[]; p
           </p>
         </div>
       </div>
+      <ExamProgressBars exams={exams} progress={progress} started={started} />
       <dl className="mt-4 grid grid-cols-3 rounded-xl bg-fill/60 py-2.5 text-center">
         <SummaryStat label="Started" value={started} />
         <SummaryStat label="Completed" value={completed} divider />
         <SummaryStat label="Offline" value={savedCount} divider />
       </dl>
     </section>
+  );
+}
+
+// One thin bar per exam, oldest on the left, filled from the baseline by the share of its questions
+// answered. A single series in the app's tint over a fill-coloured track, so it needs no legend.
+// Hovering, focusing or tapping a bar names that exam in the caption above; otherwise the caption
+// gives the overall count.
+function ExamProgressBars({ exams, progress, started }: { exams: ExamListItem[]; progress: Map<string, Progress>; started: number }) {
+  const [active, setActive] = useState<string | null>(null);
+  const ordered = useMemo(() => [...exams].reverse(), [exams]);
+  const activeExam = ordered.find((e) => e.slug === active);
+  const activeProgress = activeExam && progress.get(activeExam.slug);
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between gap-3 text-[12px]">
+        <span className="shrink-0 font-semibold text-secondary">By exam</span>
+        <span className="min-w-0 truncate text-right text-secondary" aria-live="polite">
+          {activeExam && activeProgress ? (
+            <>
+              {activeExam.exam_info.exam_title}
+              <span className="text-label tabular-nums">
+                {" "}
+                · {formatNumber(activeProgress.answered)}/{formatNumber(activeProgress.total)}
+              </span>
+            </>
+          ) : (
+            `${formatNumber(started)} of ${pluralize(exams.length, "exam")} started`
+          )}
+        </span>
+      </div>
+
+      <div className="mt-2 flex h-10 items-end gap-0.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+        {ordered.map((exam) => {
+          const p = progress.get(exam.slug);
+          const pct = p && p.total ? Math.min(100, (p.answered / p.total) * 100) : 0;
+          const dimmed = active !== null && active !== exam.slug;
+          return (
+            <button
+              key={exam.slug}
+              type="button"
+              aria-label={`${exam.exam_info.exam_title}: ${formatNumber(p?.answered ?? 0)} of ${pluralize(p?.total ?? 0, "question")} answered`}
+              onPointerEnter={(e) => e.pointerType === "mouse" && setActive(exam.slug)}
+              onFocus={() => setActive(exam.slug)}
+              onBlur={() => setActive(null)}
+              onClick={() => setActive((a) => (a === exam.slug ? null : exam.slug))}
+              // The button fills the strip's height so the hit area is bigger than a nearly empty bar.
+              className={`relative h-full max-w-3 min-w-0.5 flex-1 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tint ${dimmed ? "opacity-40" : ""}`}
+            >
+              <span className="absolute inset-0 rounded-t-[3px] bg-fill" />
+              <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] bg-tint transition-[height] duration-500" style={{ height: `${pct}%` }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -422,6 +479,11 @@ function HomeSkeleton() {
             <Skeleton className="mt-1.5 h-3.5 w-2/3 max-w-40" />
           </div>
         </div>
+        <div className="mt-4 flex justify-between">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-3 w-28" />
+        </div>
+        <Skeleton className="mt-2 h-10 w-full rounded-md" />
         <div className="mt-4 grid grid-cols-3 rounded-xl bg-fill/60 py-2.5">
           {[0, 1, 2].map((i) => (
             <div key={i} className={`flex flex-col items-center gap-1.5 ${i > 0 ? "border-l-[0.5px] border-separator" : ""}`}>
