@@ -7,7 +7,7 @@ import { type Answers, defaultModeSetting, loadAnswers, saveAnswers, touchRecent
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
-import { BookOpenIcon, BuildingIcon, CalendarIcon, ChevronLeftIcon, ExternalLinkIcon, GridIcon, ResetIcon, TargetIcon } from "./icons";
+import { ChevronLeftIcon, ExternalLinkIcon, GridIcon, ResetIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { type Mode, QuestionCard } from "./QuestionCard";
 import { Sheet } from "./Sheet";
@@ -90,22 +90,25 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   return (
     <>
       <title>{`${info.exam_title} | সরকারি চাকরি প্রস্তুতি`}</title>
-      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
+      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
         {/* Phones go back from the bottom toolbar; wider screens have no toolbar, so they get this link. */}
-        <AppLink href="/" className="pressable mb-2 hidden items-center text-[17px] text-tint lg:inline-flex">
-          <ChevronLeftIcon className="-ml-2 size-7 stroke-[2.5]" /> সব পরীক্ষা
+        <AppLink href="/" className="pressable mb-4 hidden items-center text-[15px] text-tint lg:inline-flex">
+          <ChevronLeftIcon className="-ml-1.5 size-5 stroke-[2.5]" /> সব পরীক্ষা
         </AppLink>
-        <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
 
-        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8">
-          <div>
-            <ModeToggle mode={mode} onChange={setMode} />
-            <p className="mt-2 px-1 text-[13px] text-secondary">
-              {mode === "practice" ? "একটি অপশন বেছে নিন, সাথে সাথে উত্তর ও ব্যাখ্যা দেখুন।" : "সব প্রশ্নের সঠিক উত্তর ও ব্যাখ্যা দেখানো হচ্ছে।"}
-            </p>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-12">
+          <div className="min-w-0">
+            <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
+
+            <div className="mt-6 flex items-end justify-between gap-4 border-b border-separator">
+              <ModeTabs mode={mode} onChange={setMode} />
+              <p className="hidden pb-2.5 text-[13px] text-secondary sm:block">
+                {mode === "practice" ? "অপশন বেছে নিয়ে যাচাই করুন" : "সব উত্তর ও ব্যাখ্যা দেখানো হচ্ছে"}
+              </p>
+            </div>
 
             {subjects.length > 1 && (
-              <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+              <div className="no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
                 <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="সব বিষয়" count={questions.length} />
                 {subjects.map(([name, count]) => (
                   <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />
@@ -113,7 +116,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
               </div>
             )}
 
-            <div className="mt-4 space-y-3 sm:space-y-4">
+            <div className="mt-2 divide-y divide-separator">
               {visible.map((q) => (
                 <QuestionCard
                   key={q.question_no}
@@ -130,11 +133,11 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             )}
           </div>
 
-          <aside className="hidden lg:sticky lg:top-[max(0.75rem,env(safe-area-inset-top))] lg:block lg:space-y-4">
+          <aside className="hidden lg:sticky lg:top-[max(1.25rem,env(safe-area-inset-top))] lg:block">
             <ProgressCard mode={mode} progress={progress} onReset={reset} />
-            <div className="rounded-2xl bg-surface p-4">
-              <h2 className="text-[15px] font-semibold">প্রশ্নে যান</h2>
-              <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-5" />
+            <div className="mt-8">
+              <h2 className="text-[13px] font-semibold text-secondary">প্রশ্নে যান</h2>
+              <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-6" />
             </div>
           </aside>
         </div>
@@ -155,77 +158,63 @@ type Progress = { total: number; answered: number; correct: number; wrong: numbe
 
 function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; available: number; subjectCount: number }) {
   const hasSafeSource = /^https?:\/\//i.test(info.source_url);
+  const meta = [
+    formatExamDate(info.exam_date),
+    info.exam_type,
+    `${toBn(info.total_questions)}টি প্রশ্ন`,
+    `${toBn(info.total_marks)} নম্বর`,
+    `${toBn(subjectCount)}টি বিষয়`,
+  ];
 
   return (
-    <section className="rounded-2xl bg-surface p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-700 text-white">
-          <BuildingIcon className="size-6" />
-        </span>
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[13px] text-secondary">
-            <span className="min-w-0 truncate">{info.organization}</span>
-            <OfflineBadge className="shrink-0" />
-          </p>
-          <h1 className="mt-0.5 text-[22px] leading-snug font-bold sm:text-[26px]">{info.exam_title}</h1>
-        </div>
-      </div>
+    <header>
+      <p className="flex items-center gap-2 text-[13px] font-medium text-tint">
+        <span className="min-w-0 truncate">{info.organization}</span>
+        <OfflineBadge className="shrink-0" />
+      </p>
+      <h1 className="mt-1 text-[26px] leading-tight font-bold tracking-tight sm:text-[32px]">{info.exam_title}</h1>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
-        <span className="inline-flex items-center gap-1 rounded-full bg-fill px-2.5 py-1 text-secondary">
-          <CalendarIcon className="size-3.5" /> {formatExamDate(info.exam_date)}
-        </span>
-        <span className="rounded-full bg-fill px-2.5 py-1 font-medium text-secondary">{info.exam_type}</span>
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-secondary">
+        {meta.map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-2">
+            {i > 0 && (
+              <span aria-hidden="true" className="text-tertiary">
+                ·
+              </span>
+            )}
+            {item}
+          </span>
+        ))}
         {hasSafeSource && (
           <a
             href={info.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="pressable inline-flex items-center gap-1 px-1 py-1 font-medium text-tint"
+            className="pressable ml-1 inline-flex items-center gap-1 font-medium text-tint"
           >
             মূল উৎস <ExternalLinkIcon className="size-3.5" />
           </a>
         )}
-      </div>
-
-      <dl className="mt-4 grid grid-cols-3 rounded-xl bg-fill py-2.5">
-        <HeaderStat label="প্রশ্ন" value={toBn(info.total_questions)} />
-        <HeaderStat label="পূর্ণমান" value={toBn(info.total_marks)} divider />
-        <HeaderStat label="বিষয়" value={toBn(subjectCount)} divider />
-      </dl>
+      </p>
 
       {available < info.total_questions && (
-        <p className="mt-3 text-[13px] text-secondary">
+        <p className="mt-2 text-[13px] text-tertiary">
           এখানে {toBn(info.total_questions)}টির মধ্যে {toBn(available)}টি প্রশ্ন যুক্ত করা হয়েছে।
         </p>
       )}
-    </section>
+    </header>
   );
 }
 
-function HeaderStat({ label, value, divider = false }: { label: string; value: string; divider?: boolean }) {
-  return (
-    <div className={`flex flex-col-reverse items-center ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
-      <dt className="text-[13px] text-secondary">{label}</dt>
-      <dd className="text-[22px] leading-tight font-semibold">{value}</dd>
-    </div>
-  );
-}
-
-// UISegmentedControl: a grey track with a raised, sliding thumb under the selected segment.
-function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
-  const options: { value: Mode; label: string; icon: React.ReactNode }[] = [
-    { value: "practice", label: "অনুশীলন", icon: <TargetIcon className="size-4" /> },
-    { value: "study", label: "পড়ার মোড", icon: <BookOpenIcon className="size-4" /> },
+// Two text tabs with an underline under the selected one; the row's bottom border is the track.
+function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
+  const options: { value: Mode; label: string }[] = [
+    { value: "practice", label: "অনুশীলন" },
+    { value: "study", label: "পড়ার মোড" },
   ];
 
   return (
-    <div role="radiogroup" aria-label="মোড নির্বাচন" className="relative grid grid-cols-2 rounded-[9px] bg-fill p-0.5 md:max-w-sm">
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[7px] bg-white shadow-[0_3px_8px_rgb(0_0_0/0.12),0_3px_1px_rgb(0_0_0/0.04)] transition-transform duration-300 ease-out dark:bg-[#636366]"
-        style={{ transform: mode === "study" ? "translateX(100%)" : "none" }}
-      />
+    <div role="radiogroup" aria-label="মোড নির্বাচন" className="-mb-px flex gap-6">
       {options.map((o) => (
         <button
           key={o.value}
@@ -233,11 +222,10 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
           role="radio"
           aria-checked={mode === o.value}
           onClick={() => onChange(o.value)}
-          className={`relative inline-flex h-8 items-center justify-center gap-1.5 text-[15px] transition-colors ${
-            mode === o.value ? "font-semibold text-label" : "font-medium text-secondary"
+          className={`border-b-2 pb-2.5 text-[15px] transition-colors ${
+            mode === o.value ? "border-label font-semibold text-label" : "border-transparent font-medium text-secondary active:text-label"
           }`}
         >
-          {o.icon}
           {o.label}
         </button>
       ))}
@@ -251,12 +239,12 @@ function SubjectChip({ active, onClick, label, count }: { active: boolean; onCli
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`pressable inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[15px] font-medium whitespace-nowrap ${
-        active ? "bg-label text-canvas" : "bg-surface text-label"
+      className={`pressable inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium whitespace-nowrap ${
+        active ? "bg-fill text-label" : "text-secondary"
       }`}
     >
       {label}
-      <span className={`text-[13px] ${active ? "opacity-70" : "text-secondary"}`}>{toBn(count)}</span>
+      <span className="text-[12px] text-tertiary tabular-nums">{toBn(count)}</span>
     </button>
   );
 }
@@ -265,7 +253,7 @@ function ProgressBar({ progress }: { progress: Progress }) {
   const pct = (n: number) => (progress.total ? (n / progress.total) * 100 : 0);
   return (
     <div
-      className="flex h-1.5 w-full overflow-hidden rounded-full bg-fill"
+      className="flex h-1 w-full overflow-hidden rounded-full bg-fill"
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={progress.total}
@@ -282,30 +270,25 @@ function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progr
   const accuracy = progress.answered ? Math.round((progress.correct / progress.answered) * 100) : 0;
 
   return (
-    <div className="rounded-2xl bg-surface p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[15px] font-semibold">আপনার অগ্রগতি</h2>
-        <span className="text-[13px] text-secondary">
-          {toBn(progress.answered)}/{toBn(progress.total)}
-        </span>
-      </div>
-      <p className="mt-2 text-[34px] leading-tight font-bold">
+    <div>
+      <h2 className="text-[13px] font-semibold text-secondary">অগ্রগতি</h2>
+      <p className="mt-2 text-[34px] leading-none font-bold tabular-nums">
         {toBn(accuracy)}%<span className="ml-2 text-[13px] font-medium text-secondary">নির্ভুলতা</span>
       </p>
-      <div className="mt-3">
+      <div className="mt-4">
         <ProgressBar progress={progress} />
       </div>
-      <dl className="mt-3 grid grid-cols-3 rounded-xl bg-fill py-2 text-center">
+      <dl className="mt-4 grid grid-cols-3 gap-2">
         <SmallStat label="উত্তর" value={progress.answered} className="text-label" />
-        <SmallStat label="সঠিক" value={progress.correct} className="text-ios-green" divider />
-        <SmallStat label="ভুল" value={progress.wrong} className="text-ios-red" divider />
+        <SmallStat label="সঠিক" value={progress.correct} className="text-ios-green" />
+        <SmallStat label="ভুল" value={progress.wrong} className="text-ios-red" />
       </dl>
       {mode === "study" && <p className="mt-3 text-[13px] text-secondary">অনুশীলন মোডে উত্তর দিলে অগ্রগতি এখানে দেখা যাবে।</p>}
       <button
         type="button"
         onClick={onReset}
         disabled={progress.answered === 0}
-        className="pressable mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-fill text-[15px] font-semibold text-ios-red disabled:cursor-not-allowed disabled:opacity-40"
+        className="pressable mt-4 inline-flex items-center gap-1.5 text-[14px] font-medium text-ios-red disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ResetIcon className="size-4" /> আবার শুরু করুন
       </button>
@@ -313,11 +296,11 @@ function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progr
   );
 }
 
-function SmallStat({ label, value, className, divider = false }: { label: string; value: number; className: string; divider?: boolean }) {
+function SmallStat({ label, value, className }: { label: string; value: number; className: string }) {
   return (
-    <div className={`flex flex-col-reverse ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
-      <dt className="text-[13px] text-secondary">{label}</dt>
-      <dd className={`text-[20px] font-semibold ${className}`}>{toBn(value)}</dd>
+    <div className="flex flex-col-reverse">
+      <dt className="text-[12px] text-secondary">{label}</dt>
+      <dd className={`text-[20px] font-semibold tabular-nums ${className}`}>{toBn(value)}</dd>
     </div>
   );
 }
@@ -336,12 +319,12 @@ function QuestionNavigator({
   className: string;
 }) {
   return (
-    <div className={`grid gap-2 ${className}`}>
+    <div className={`grid gap-1 ${className}`}>
       {questions.map((q) => {
         const answer = answers[q.question_no];
-        let tone = "bg-fill text-label";
+        let tone = "text-secondary active:bg-fill";
         if (mode === "practice" && answer !== undefined) {
-          tone = answer === q.correct_answer ? "bg-ios-green text-white" : "bg-ios-red text-white";
+          tone = answer === q.correct_answer ? "bg-ios-green/12 text-ios-green" : "bg-ios-red/12 text-ios-red";
         }
         return (
           <button
@@ -349,7 +332,7 @@ function QuestionNavigator({
             type="button"
             onClick={() => onJump(q.question_no)}
             aria-label={`প্রশ্ন ${toBn(q.question_no)}-এ যান`}
-            className={`pressable aspect-square rounded-full text-[15px] font-semibold ${tone}`}
+            className={`pressable aspect-square rounded-full text-[14px] font-medium tabular-nums ${tone}`}
           >
             {toBn(q.question_no)}
           </button>
@@ -428,9 +411,9 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
   const message = accuracy >= 80 ? "অসাধারণ! চমৎকার প্রস্তুতি।" : accuracy >= 50 ? "ভালো হয়েছে! আরেকটু অনুশীলন করুন।" : "হাল ছাড়বেন না, আবার চেষ্টা করুন।";
 
   return (
-    <div className="mt-6 animate-fade-in rounded-2xl bg-surface p-6 text-center">
-      <p className="text-[13px] font-semibold text-tint">অনুশীলন সম্পন্ন</p>
-      <p className="mt-1 text-[48px] leading-tight font-bold">
+    <div className="mt-2 animate-fade-in border-t border-separator py-10 text-center">
+      <p className="text-[13px] font-semibold text-secondary">অনুশীলন সম্পন্ন</p>
+      <p className="mt-1 text-[48px] leading-tight font-bold tabular-nums">
         {toBn(progress.correct)}
         <span className="text-[28px] text-tertiary">/{toBn(progress.total)}</span>
       </p>
@@ -438,9 +421,9 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
       <button
         type="button"
         onClick={onReset}
-        className="pressable mt-5 inline-flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-tint text-[17px] font-semibold text-white sm:w-auto sm:px-8 dark:text-black"
+        className="pressable mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-label px-6 text-[15px] font-semibold text-canvas"
       >
-        <ResetIcon className="size-5" /> আবার অনুশীলন করুন
+        <ResetIcon className="size-4.5" /> আবার অনুশীলন করুন
       </button>
     </div>
   );
@@ -448,25 +431,18 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
 
 export function ExamSkeleton() {
   return (
-    <>
-      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
-        <div className="rounded-2xl bg-surface p-4">
-          <div className="flex gap-3">
-            <Skeleton className="size-12 shrink-0 rounded-xl" />
-            <div className="flex-1">
-              <Skeleton className="h-3.5 w-1/3" />
-              <Skeleton className="mt-2 h-6 w-full" />
-              <Skeleton className="mt-2 h-6 w-2/3" />
-            </div>
-          </div>
-          <Skeleton className="mt-4 h-16 w-full rounded-xl" />
-        </div>
-        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8">
-          <div className="space-y-3">
-            <Skeleton className="h-9 w-full rounded-[9px] md:max-w-sm" />
+    <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
+        <div>
+          <Skeleton className="h-3.5 w-1/3" />
+          <Skeleton className="mt-3 h-7 w-full" />
+          <Skeleton className="mt-2 h-7 w-2/3" />
+          <Skeleton className="mt-4 h-4 w-3/4" />
+          <Skeleton className="mt-7 h-6 w-48" />
+          <div className="mt-2 divide-y divide-separator">
             {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="rounded-2xl bg-surface p-4">
-                <Skeleton className="h-3.5 w-32" />
+              <div key={i} className="py-6">
+                <Skeleton className="h-3.5 w-28" />
                 <Skeleton className="mt-3 h-5 w-3/4" />
                 <div className="mt-4 grid gap-2">
                   {Array.from({ length: 4 }, (_, j) => (
@@ -476,9 +452,9 @@ export function ExamSkeleton() {
               </div>
             ))}
           </div>
-          <Skeleton className="hidden h-80 rounded-2xl lg:block" />
         </div>
-      </main>
-    </>
+        <Skeleton className="hidden h-64 rounded-xl lg:block" />
+      </div>
+    </main>
   );
 }
