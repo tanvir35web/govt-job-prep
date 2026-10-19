@@ -206,91 +206,78 @@ function SummaryCard({ exams, progress, savedCount }: { exams: ExamListItem[]; p
   const pct = total ? Math.round((answered / total) * 100) : 0;
 
   return (
-    <section className="mt-5 rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10" aria-label="Your progress">
-      <div className="flex items-center gap-4">
-        <Ring value={answered} total={total} size={76} stroke={8}>
-          <span className="text-[17px] font-bold">{formatNumber(pct)}%</span>
+    // The whole card opens the Progress page.
+    <AppLink
+      href="/progress"
+      aria-label="Your progress. Open details"
+      className="mt-5 block rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 transition-transform active:scale-[0.99] dark:ring-white/10"
+    >
+      <div className="flex items-center gap-3.5">
+        <Ring value={answered} total={total} size={56} stroke={6}>
+          <span className="text-[14px] font-bold">{formatNumber(pct)}%</span>
         </Ring>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[17px] font-semibold">Your progress</h2>
-          <p className="mt-0.5 text-[15px] leading-snug text-secondary">
+          <h2 className="flex items-center gap-1 text-[16px] leading-tight font-semibold">
+            Your progress
+            <ChevronRightIcon className="size-4 stroke-[2.5] text-tertiary" />
+          </h2>
+          <p className="mt-0.5 truncate text-[14px] text-secondary">
             {answered > 0
               ? `${formatNumber(answered)} of ${pluralize(total, "question")} answered`
-              : `${pluralize(total, "question")} across ${pluralize(exams.length, "exam")}. Pick one to start.`}
+              : `${pluralize(total, "question")} across ${pluralize(exams.length, "exam")}`}
+          </p>
+          {/* The three counts as one quiet line instead of a stats box. */}
+          <p className="mt-0.5 truncate text-[12px] text-tertiary tabular-nums">
+            {formatNumber(started)} started · {formatNumber(completed)} completed · {formatNumber(savedCount)} offline
           </p>
         </div>
       </div>
-      <ExamProgressBars exams={exams} progress={progress} started={started} />
-      <dl className="mt-4 grid grid-cols-3 rounded-xl bg-fill/60 py-2.5 text-center">
-        <SummaryStat label="Started" value={started} />
-        <SummaryStat label="Completed" value={completed} divider />
-        <SummaryStat label="Offline" value={savedCount} divider />
-      </dl>
-    </section>
+      <ExamProgressBars exams={exams} progress={progress} />
+    </AppLink>
   );
 }
 
 // One thin bar per exam, oldest on the left, filled from the baseline by the share of its questions
-// answered. A single series in the app's tint over a fill-coloured track, so it needs no legend.
-// Hovering, focusing or tapping a bar names that exam in the caption above; otherwise the caption
-// gives the overall count.
-function ExamProgressBars({ exams, progress, started }: { exams: ExamListItem[]; progress: Map<string, Progress>; started: number }) {
-  const [active, setActive] = useState<string | null>(null);
+// answered. Each exam gets an equal column across the full card width with its bar centred in it, so
+// the chart spans edge to edge however many exams there are. A single series in the app's tint over a
+// fill-coloured track, so it needs no legend. It is a glance, not a control: nothing to tap. Screen
+// readers get the same figures as a list.
+function ExamProgressBars({ exams, progress }: { exams: ExamListItem[]; progress: Map<string, Progress> }) {
   const ordered = useMemo(() => [...exams].reverse(), [exams]);
-  const activeExam = ordered.find((e) => e.slug === active);
-  const activeProgress = activeExam && progress.get(activeExam.slug);
 
   return (
-    <div className="mt-4">
-      <div className="flex items-baseline justify-between gap-3 text-[12px]">
-        <span className="shrink-0 font-semibold text-secondary">By exam</span>
-        <span className="min-w-0 truncate text-right text-secondary" aria-live="polite">
-          {activeExam && activeProgress ? (
-            <>
-              {activeExam.exam_info.exam_title}
-              <span className="text-label tabular-nums">
-                {" "}
-                · {formatNumber(activeProgress.answered)}/{formatNumber(activeProgress.total)}
-              </span>
-            </>
-          ) : (
-            `${formatNumber(started)} of ${pluralize(exams.length, "exam")} started`
-          )}
-        </span>
+    <div className="mt-3.5">
+      <div className="flex items-baseline justify-between gap-3 text-[12px]" aria-hidden="true">
+        <span className="font-semibold text-secondary">By exam</span>
+        {/* The whole card links to the Progress page. */}
+        <span className="text-tertiary">Tap for details</span>
       </div>
 
-      <div className="mt-2 flex h-10 items-end gap-0.5" onPointerLeave={(e) => e.pointerType === "mouse" && setActive(null)}>
+      <div className="mt-1.5 grid h-7" style={{ gridTemplateColumns: `repeat(${ordered.length}, minmax(0, 1fr))` }} aria-hidden="true">
         {ordered.map((exam) => {
           const p = progress.get(exam.slug);
           const pct = p && p.total ? Math.min(100, (p.answered / p.total) * 100) : 0;
-          const dimmed = active !== null && active !== exam.slug;
           return (
-            <button
-              key={exam.slug}
-              type="button"
-              aria-label={`${exam.exam_info.exam_title}: ${formatNumber(p?.answered ?? 0)} of ${pluralize(p?.total ?? 0, "question")} answered`}
-              onPointerEnter={(e) => e.pointerType === "mouse" && setActive(exam.slug)}
-              onFocus={() => setActive(exam.slug)}
-              onBlur={() => setActive(null)}
-              onClick={() => setActive((a) => (a === exam.slug ? null : exam.slug))}
-              // The button fills the strip's height so the hit area is bigger than a nearly empty bar.
-              className={`relative h-full max-w-3 min-w-0.5 flex-1 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tint ${dimmed ? "opacity-40" : ""}`}
-            >
-              <span className="absolute inset-0 rounded-t-[3px] bg-fill" />
-              <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] bg-tint transition-[height] duration-500" style={{ height: `${pct}%` }} />
-            </button>
+            <span key={exam.slug} className="flex h-full justify-center">
+              <span className="relative h-full w-[min(10px,calc(100%-2px))]">
+                <span className="absolute inset-0 rounded-t-[3px] bg-fill" />
+                <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] bg-tint transition-[height] duration-500" style={{ height: `${pct}%` }} />
+              </span>
+            </span>
           );
         })}
       </div>
-    </div>
-  );
-}
 
-function SummaryStat({ label, value, divider = false }: { label: string; value: number; divider?: boolean }) {
-  return (
-    <div className={`flex flex-col-reverse ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
-      <dt className="text-[13px] text-secondary">{label}</dt>
-      <dd className="text-[20px] leading-tight font-semibold">{formatNumber(value)}</dd>
+      <ul className="sr-only" aria-label="Progress by exam">
+        {ordered.map((exam) => {
+          const p = progress.get(exam.slug);
+          return (
+            <li key={exam.slug}>
+              {exam.exam_info.exam_title}: {formatNumber(p?.answered ?? 0)} of {pluralize(p?.total ?? 0, "question")} answered
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -470,28 +457,20 @@ function HomeSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading" className="animate-fade-in">
       <div className="mt-5 rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3.5">
           {/* Same size as the progress ring; the mask cuts out its centre. */}
-          <Skeleton className="size-19 shrink-0 rounded-full [mask:radial-gradient(farthest-side,transparent_calc(100%-8px),#000_calc(100%-8px))]" />
+          <Skeleton className="size-14 shrink-0 rounded-full [mask:radial-gradient(farthest-side,transparent_calc(100%-6px),#000_calc(100%-6px))]" />
           <div className="min-w-0 flex-1">
-            <Skeleton className="h-4.5 w-32" />
-            <Skeleton className="mt-2.5 h-3.5 w-full max-w-60" />
-            <Skeleton className="mt-1.5 h-3.5 w-2/3 max-w-40" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="mt-2 h-3.5 w-full max-w-56" />
+            <Skeleton className="mt-1.5 h-3 w-2/3 max-w-44" />
           </div>
         </div>
-        <div className="mt-4 flex justify-between">
+        <div className="mt-3.5 flex justify-between">
           <Skeleton className="h-3 w-14" />
-          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-3 w-24" />
         </div>
-        <Skeleton className="mt-2 h-10 w-full rounded-md" />
-        <div className="mt-4 grid grid-cols-3 rounded-xl bg-fill/60 py-2.5">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className={`flex flex-col items-center gap-1.5 ${i > 0 ? "border-l-[0.5px] border-separator" : ""}`}>
-              <Skeleton className="h-5 w-7" />
-              <Skeleton className="h-3 w-14" />
-            </div>
-          ))}
-        </div>
+        <Skeleton className="mt-1.5 h-7 w-full rounded-md" />
       </div>
 
       {showContinue && (

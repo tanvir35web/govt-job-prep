@@ -10,7 +10,7 @@ import { enterFullscreenOnTouch } from "@/lib/fullscreen";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { FilterChip, SearchField } from "./ExamList";
-import { CircleCheckIcon, PlayIcon, SearchIcon, WifiOffIcon } from "./icons";
+import { ArrowRightIcon, CircleCheckIcon, SearchIcon, WifiOffIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { PageTitle } from "./PageTitle";
 import { ErrorState, Skeleton } from "./StatusViews";
@@ -147,13 +147,7 @@ function ProgressLine({ value, total, tone, className = "" }: { value: number; t
   );
 }
 
-function PlayBadge({ tone, size = "size-9" }: { tone: SoftTone; size?: string }) {
-  return (
-    <span className={`grid ${size} shrink-0 place-items-center rounded-full text-white dark:text-black ${tone.solid}`}>
-      <PlayIcon className="ml-0.5 size-4 fill-current stroke-0" />
-    </span>
-  );
-}
+const CARD_RING = "ring-[0.5px] ring-black/5 dark:ring-white/10";
 
 function ContinueCard({ exam, progress, unavailable }: { exam: ExamListItem; progress?: Progress; unavailable: boolean }) {
   const info = exam.exam_info;
@@ -164,9 +158,8 @@ function ContinueCard({ exam, progress, unavailable }: { exam: ExamListItem; pro
     <AppLink
       href={`/reels/${exam.slug}`}
       onClick={enterFullscreenOnTouch}
-      className={`mt-5 flex items-center gap-3.5 rounded-[20px] p-4 transition-transform active:scale-[0.98] ${tone.card} ${unavailable ? "opacity-40" : ""}`}
+      className={`mt-5 flex items-center gap-3.5 rounded-[20px] p-4 transition-transform active:scale-[0.98] ${CARD_RING} ${tone.card} ${unavailable ? "opacity-40" : ""}`}
     >
-      <PlayBadge tone={tone} size="size-12" />
       <div className="min-w-0 flex-1">
         <p className={`text-[12px] font-semibold ${tone.accent}`}>Continue</p>
         <p className="mt-0.5 truncate text-[16px] font-semibold">{info.exam_title}</p>
@@ -177,11 +170,14 @@ function ContinueCard({ exam, progress, unavailable }: { exam: ExamListItem; pro
           </span>
         </div>
       </div>
+      <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-full ${tone.track} ${tone.accent}`}>
+        <ArrowRightIcon className="size-4.5" />
+      </span>
     </AppLink>
   );
 }
 
-// A calm, pale card in the organisation's hue: play button and status on top, title and progress at the bottom.
+// A calm, faint card in the organisation's hue: organisation and status on top, title, progress and a start/resume cue at the bottom.
 function ReelCover({ exam, progress, saved, unavailable }: { exam: ExamListItem; progress?: Progress; saved: boolean; unavailable: boolean }) {
   const info = exam.exam_info;
   const tone = softToneFor(info.organization);
@@ -193,10 +189,12 @@ function ReelCover({ exam, progress, saved, unavailable }: { exam: ExamListItem;
       href={`/reels/${exam.slug}`}
       onClick={enterFullscreenOnTouch}
       aria-label={`${info.exam_title}, ${pluralize(info.total_questions, "question")}${done ? ", done" : ""}`}
-      className={`flex aspect-[4/5] flex-col rounded-[20px] p-3.5 transition-transform active:scale-[0.97] ${tone.card} ${unavailable ? "opacity-40" : ""}`}
+      className={`flex aspect-[4/5] flex-col rounded-[20px] p-3.5 transition-transform active:scale-[0.97] ${CARD_RING} ${tone.card} ${unavailable ? "opacity-40" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <PlayBadge tone={tone} />
+        <span className={`min-w-0 truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone.track} ${tone.accent}`}>
+          {info.organization}
+        </span>
         {done ? (
           <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${tone.accent}`}>
             <CircleCheckIcon className="size-4" /> Done
@@ -209,12 +207,16 @@ function ReelCover({ exam, progress, saved, unavailable }: { exam: ExamListItem;
       </div>
 
       <div className="mt-auto min-w-0">
-        <p className={`truncate text-[12px] font-semibold ${tone.accent}`}>{info.organization}</p>
-        <p className="mt-1 line-clamp-3 text-[15px] leading-snug font-semibold">{info.exam_title}</p>
+        <p className="line-clamp-3 text-[15px] leading-snug font-semibold">{info.exam_title}</p>
         <p className="mt-1.5 truncate text-[12px] text-secondary">
           {pluralize(info.total_questions, "question")} · {formatExamDate(info.exam_date)}
         </p>
         {answered > 0 && !done && <ProgressLine value={answered} total={info.total_questions} tone={tone} className="mt-2.5" />}
+        {!done && (
+          <span className={`mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold ${tone.accent}`}>
+            {answered > 0 ? "Resume" : "Start"} <ArrowRightIcon className="size-3.5" />
+          </span>
+        )}
       </div>
     </AppLink>
   );
