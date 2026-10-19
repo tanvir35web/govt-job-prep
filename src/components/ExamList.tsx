@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { softToneFor } from "@/lib/covers";
 import { parseExamDate } from "@/lib/exam-validation";
-import { firstLetter, formatExamDate, formatNumber, pluralize } from "@/lib/format";
+import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import { getSavedSlugs, useOnline } from "@/lib/offline";
 import { loadAnswers, loadRecentExams } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
@@ -287,21 +287,14 @@ function ExamGroup({ exams, rowProps }: { exams: ExamListItem[]; rowProps: (exam
 
 function ExamRow({ exam, progress, saved, unavailable, last }: RowProps & { last: boolean }) {
   const info = exam.exam_info;
-  const tone = softToneFor(info.organization);
   const answered = progress?.answered ?? 0;
   const done = info.total_questions > 0 && answered >= info.total_questions;
 
   return (
     <AppLink
       href={`/exams/${exam.slug}`}
-      className={`flex items-center gap-3 pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
+      className={`flex items-center pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
     >
-      <span
-        aria-hidden="true"
-        className={`grid size-11 shrink-0 place-items-center rounded-xl text-[17px] font-bold ${tone.wash} ${tone.accent}`}
-      >
-        {firstLetter(info.organization)}
-      </span>
       <div className={`flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 ${last ? "" : "hairline-b"}`}>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[16px] leading-snug font-semibold">{info.exam_title}</p>
@@ -472,8 +465,7 @@ function HomeSkeleton() {
             {Array.from({ length: rows }, (_, i) => {
               const n = group * 4 + i;
               return (
-                <div key={i} className="flex items-center gap-3 pl-4">
-                  <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <div key={i} className="flex items-center pl-4">
                   <div className={`flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-4 ${i < rows - 1 ? "hairline-b" : ""}`}>
                     <div className="min-w-0 flex-1">
                       <Skeleton className={`h-4 ${ROW_TITLES[n % ROW_TITLES.length]}`} />
