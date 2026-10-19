@@ -3,59 +3,48 @@
 import type { ReactNode } from "react";
 import { CheckIcon } from "../icons";
 
-// Building blocks for an iOS Settings-style inset grouped list.
+// Building blocks for a grouped settings list. Flat and quiet: translucent cards with a hairline edge
+// (as on Home), plain line icons in the secondary colour, sentence-case labels.
 
 export function Section({ title, footer, children }: { title?: string; footer?: ReactNode; children: ReactNode }) {
   return (
-    <section className="mt-7 first:mt-2">
-      {title && <h2 className="mb-1.5 px-4 text-[13px] text-secondary">{title}</h2>}
-      <ul className="overflow-hidden rounded-2xl bg-surface">{children}</ul>
-      {footer && <div className="mt-1.5 px-4 text-[13px] leading-relaxed text-secondary">{footer}</div>}
+    <section className="mt-8 first:mt-3">
+      {title && <h2 className="mb-2 px-1 text-[13px] font-semibold text-secondary">{title}</h2>}
+      <ul className="overflow-hidden rounded-2xl bg-surface/60 ring-[0.5px] ring-black/5 dark:ring-white/10">{children}</ul>
+      {footer && <div className="mt-2 px-1 text-[13px] leading-relaxed text-secondary">{footer}</div>}
     </section>
   );
 }
 
-const TILE_COLORS = {
-  green: "bg-[#34c759]",
-  blue: "bg-[#007aff]",
-  indigo: "bg-[#5856d6]",
-  orange: "bg-[#ff9500]",
-  red: "bg-[#ff3b30]",
-  gray: "bg-[#8e8e93]",
-  teal: "bg-linear-to-br from-emerald-500 to-teal-700",
-} as const;
-
-export type TileColor = keyof typeof TILE_COLORS;
-
-function Tile({ icon, color }: { icon: ReactNode; color: TileColor }) {
-  return <span className={`grid size-[29px] shrink-0 place-items-center rounded-[7px] text-white ${TILE_COLORS[color]}`}>{icon}</span>;
+function RowIcon({ icon }: { icon?: ReactNode }) {
+  if (!icon) return null;
+  return <span className="grid size-5 shrink-0 place-items-center text-secondary">{icon}</span>;
 }
 
-// Rows are separated by hairlines that start after the icon, as in iOS. The last row's line is hidden.
+// Rows are separated by hairlines that start after the icon. The last row's line is hidden.
 function RowBody({ label, detail, trailing, labelClass = "" }: { label: ReactNode; detail?: ReactNode; trailing?: ReactNode; labelClass?: string }) {
   return (
-    <div className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4 [li:not(:last-child)_&]:hairline-b">
+    <div className="flex min-h-13 min-w-0 flex-1 items-center gap-3 py-3 pr-4 [li:not(:last-child)_&]:hairline-b">
       <div className="min-w-0 flex-1">
-        <div className={`text-[17px] leading-snug ${labelClass}`}>{label}</div>
-        {detail && <div className="mt-0.5 text-[13px] text-secondary">{detail}</div>}
+        <div className={`text-[16px] leading-snug ${labelClass}`}>{label}</div>
+        {detail && <div className="mt-0.5 text-[13px] leading-snug text-secondary">{detail}</div>}
       </div>
       {trailing}
     </div>
   );
 }
 
-export function ValueRow({ icon, color, label, value }: { icon?: ReactNode; color?: TileColor; label: ReactNode; value: ReactNode }) {
+export function ValueRow({ icon, label, detail, value }: { icon?: ReactNode; label: ReactNode; detail?: ReactNode; value: ReactNode }) {
   return (
-    <li className="flex items-center gap-3 pl-4">
-      {icon && color && <Tile icon={icon} color={color} />}
-      <RowBody label={label} trailing={<span className="shrink-0 text-[17px] text-secondary">{value}</span>} />
+    <li className="flex items-center gap-3.5 pl-4">
+      <RowIcon icon={icon} />
+      <RowBody label={label} detail={detail} trailing={<span className="shrink-0 text-[15px] text-secondary tabular-nums">{value}</span>} />
     </li>
   );
 }
 
 export function ButtonRow({
   icon,
-  color,
   label,
   detail,
   value,
@@ -64,7 +53,6 @@ export function ButtonRow({
   destructive = false,
 }: {
   icon?: ReactNode;
-  color?: TileColor;
   label: ReactNode;
   detail?: ReactNode;
   value?: ReactNode;
@@ -78,14 +66,14 @@ export function ButtonRow({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="flex w-full items-center gap-3 pl-4 text-left transition-colors active:bg-fill-strong disabled:opacity-40"
+        className="flex w-full items-center gap-3.5 pl-4 text-left transition-colors active:bg-fill disabled:opacity-40"
       >
-        {icon && color && <Tile icon={icon} color={color} />}
+        <RowIcon icon={icon} />
         <RowBody
           label={label}
           detail={detail}
-          labelClass={destructive ? "text-ios-red" : "text-tint"}
-          trailing={value && <span className="shrink-0 text-[15px] text-secondary">{value}</span>}
+          labelClass={destructive ? "text-ios-red" : "text-label"}
+          trailing={value && <span className="shrink-0 text-[15px] text-secondary tabular-nums">{value}</span>}
         />
       </button>
     </li>
@@ -100,7 +88,7 @@ export function CheckRow({ label, checked, onSelect }: { label: ReactNode; check
         role="radio"
         aria-checked={checked}
         onClick={onSelect}
-        className="flex w-full items-center pl-4 text-left transition-colors active:bg-fill-strong"
+        className="flex w-full items-center pl-4 text-left transition-colors active:bg-fill"
       >
         <RowBody label={label} trailing={checked && <CheckIcon className="size-5 shrink-0 stroke-[2.5] text-tint" />} />
       </button>
@@ -110,14 +98,12 @@ export function CheckRow({ label, checked, onSelect }: { label: ReactNode; check
 
 export function SwitchRow({
   icon,
-  color,
   label,
   detail,
   checked,
   onChange,
 }: {
   icon?: ReactNode;
-  color?: TileColor;
   label: ReactNode;
   detail?: ReactNode;
   checked: boolean;
@@ -125,15 +111,20 @@ export function SwitchRow({
 }) {
   return (
     <li>
-      <label className="flex cursor-pointer items-center gap-3 pl-4">
-        {icon && color && <Tile icon={icon} color={color} />}
+      <label className="flex cursor-pointer items-center gap-3.5 pl-4">
+        <RowIcon icon={icon} />
         <RowBody label={label} detail={detail} trailing={<Switch checked={checked} onChange={onChange} />} />
       </label>
     </li>
   );
 }
 
-// UISwitch: 51×31 track, green when on, white thumb that slides across.
+// A row holding any control (a segmented picker, a progress summary), padded like the other rows.
+export function CustomRow({ children }: { children: ReactNode }) {
+  return <li className="px-4 py-3.5 not-last:hairline-b">{children}</li>;
+}
+
+// Switch: 51×31 track in the app's tint when on, white thumb that slides across.
 function Switch({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <span className="relative inline-flex shrink-0">
@@ -141,7 +132,7 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (checked: b
       <span
         aria-hidden="true"
         className={`h-[31px] w-[51px] rounded-full transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tint ${
-          checked ? "bg-[#34c759]" : "bg-fill-strong"
+          checked ? "bg-tint" : "bg-fill-strong"
         }`}
       />
       <span

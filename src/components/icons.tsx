@@ -240,6 +240,21 @@ export const GearIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const SunIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </Icon>
+);
+
+// A screen: "follow the device" in the theme picker.
+export const MonitorIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <path d="M8 21h8M12 17v4" />
+  </Icon>
+);
+
 export const SunMoonIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />
