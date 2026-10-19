@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { coverFor } from "@/lib/covers";
-import { OPTION_LABELS, toBn } from "@/lib/format";
+import { OPTION_LABELS, firstLetter, toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
 import { type Answers, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
@@ -15,16 +15,17 @@ import {
   ChevronLeftIcon,
   ChevronUpIcon,
   LightbulbIcon,
+  ListIcon,
   ResetIcon,
-  ShareIcon,
   TargetIcon,
   XIcon,
 } from "./icons";
 import type { Mode } from "./QuestionCard";
-import { ErrorState } from "./StatusViews";
+import { Sheet } from "./Sheet";
+import { ErrorState, Skeleton } from "./StatusViews";
 
 // Reels: one question per screen in a vertical feed that snaps to each question, like short videos.
-// Each slide is full-bleed and coloured by subject, with white text, so the page looks the same in light and dark themes.
+// Each slide is full-bleed with a soft wash of its subject's colour over the theme background; text uses the theme colours.
 // Answers are shared with the exam page, so progress made in either place shows in both.
 
 export function ReelsView({ slug }: { slug: string }) {
@@ -82,6 +83,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
   const [current, setCurrent] = useState(() => Math.min(loadReelsPosition(slug), questions.length - 1));
   const [toast, setToast] = useState<string | null>(null);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
   const feedRef = useRef<HTMLElement>(null);
   const slideRefs = useRef<(HTMLElement | null)[]>([]);
   // The slide count includes the summary slide after the last question.
@@ -155,19 +157,19 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     }
   };
 
-  const share = async () => {
-    const url = window.location.href;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: info.exam_title, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setToast("লিংক কপি হয়েছে");
-    } catch (err) {
-      // Closing the share sheet rejects with AbortError; that is not a failure.
-      if (!(err instanceof DOMException && err.name === "AbortError")) setToast("শেয়ার করা যায়নি");
-    }
+  // Subjects in the order they first appear, with the slide index of each of their questions.
+  const subjects = useMemo(() => {
+    const map = new Map<string, number[]>();
+    questions.forEach((q, i) => map.set(q.subject, [...(map.get(q.subject) ?? []), i]));
+    return [...map.entries()].map(([name, indices]) => ({ name, indices }));
+  }, [questions]);
+  const currentSubject = onSummary ? null : questions[current].subject;
+
+  // Lands on the subject's first unanswered question, or its first question once all are answered.
+  const jumpToSubject = (indices: number[]) => {
+    const target = indices.find((i) => answers[questions[i].question_no] === undefined) ?? indices[0];
+    setSubjectsOpen(false);
+    goTo(target);
   };
 
   const toggleMode = () => {
@@ -180,7 +182,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     <>
       <title>{`${info.exam_title} · রিলস | সরকারি চাকরি প্রস্তুতি`}</title>
 
-      <main ref={feedRef} className="no-scrollbar fixed inset-0 snap-y snap-mandatory overflow-y-auto overscroll-contain bg-black text-white" aria-label="প্রশ্ন রিলস">
+      <main ref={feedRef} className="no-scrollbar fixed inset-0 snap-y snap-mandatory overflow-y-auto overscroll-contain bg-canvas text-label" aria-label="প্রশ্ন রিলস">
         {questions.map((q, i) => (
           <ReelSlide
             key={q.question_no}
@@ -203,16 +205,16 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
           }}
           data-index={questions.length}
           aria-label="ফলাফল"
-          className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-linear-to-br ${coverFor(info.organization)} ${SLIDE_PADDING}`}
+          className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
         >
-          <span aria-hidden="true" className="absolute inset-0 bg-black/30" />
+          <SoftWash cover={coverFor(info.organization)} />
           <SummaryCard mode={mode} total={questions.length} answered={answered} correct={correct} onReset={reset} onRestart={() => goTo(0)} />
         </section>
       </main>
 
       <ReelsTopBar
         title={info.exam_title}
-        organization={info.organization}
+        context={currentSubject ?? info.organization}
         position={onSummary ? questions.length : current + 1}
         total={questions.length}
         mode={mode}
@@ -226,19 +228,31 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
         atStart={current === 0}
         atEnd={current >= slideCount - 1}
         onToggleMode={toggleMode}
-        onShare={share}
+        onSubjects={() => setSubjectsOpen(true)}
+        hasSubjects={subjects.length > 1}
         onReset={reset}
         onPrev={() => goTo(current - 1)}
         onNext={() => goTo(current + 1)}
       />
 
+      {subjectsOpen && (
+        <Sheet title="বিষয় বেছে নিন" onClose={() => setSubjectsOpen(false)}>
+          <SubjectList subjects={subjects} questions={questions} answers={answers} mode={mode} current={currentSubject} onPick={jumpToSubject} />
+        </Sheet>
+      )}
+
       {toast && (
-        <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] flex justify-center px-4">
-          <p className="animate-fade-in rounded-full bg-black/75 px-4 py-2 text-[14px] font-medium text-white backdrop-blur-md">{toast}</p>
+        <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <p className="animate-fade-in rounded-full bg-label/85 px-4 py-2 text-[14px] font-medium text-canvas">{toast}</p>
         </div>
       )}
     </>
   );
+}
+
+// A faint, see-through wash of the cover gradient over the theme background.
+function SoftWash({ cover }: { cover: string }) {
+  return <span aria-hidden="true" className={`absolute inset-0 bg-linear-to-br opacity-15 dark:opacity-25 ${cover}`} />;
 }
 
 function ReelSlide({
@@ -269,17 +283,16 @@ function ReelSlide({
       ref={ref}
       data-index={index}
       aria-label={`প্রশ্ন ${toBn(index + 1)} / ${toBn(total)}`}
-      className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-linear-to-br ${coverFor(q.subject)} ${SLIDE_PADDING}`}
+      className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
     >
-      {/* Darkens the top and bottom so the bars and white text stay readable on any gradient. */}
-      <span aria-hidden="true" className="absolute inset-0 bg-linear-to-b from-black/45 via-black/15 to-black/55" />
+      <SoftWash cover={coverFor(q.subject)} />
 
-      <article className="relative mx-auto w-full max-w-xl rounded-3xl bg-black/25 p-4 ring-1 ring-white/15 backdrop-blur-md sm:p-6">
+      <article className="relative mx-auto w-full max-w-xl">
         <header className="flex items-center justify-between gap-3 text-[12px] font-semibold">
-          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-black">প্রশ্ন {toBn(q.question_no)}</span>
-          <span className="min-w-0 truncate text-right text-white/80">
+          <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-canvas">প্রশ্ন {toBn(q.question_no)}</span>
+          <span className="min-w-0 truncate text-right text-secondary">
             {q.subject}
-            {q.topic && <span className="font-medium text-white/60"> · {q.topic}</span>}
+            {q.topic && <span className="font-medium text-tertiary"> · {q.topic}</span>}
           </span>
         </header>
 
@@ -300,22 +313,22 @@ function ReelSlide({
         </div>
 
         {revealed && q.explanation && (
-          <div className="mt-4 animate-fade-in rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10">
-            <p className="flex items-center gap-1.5 text-[13px] font-bold text-amber-200">
+          <div className="mt-4 animate-fade-in rounded-2xl bg-ios-yellow/10 p-3.5">
+            <p className="flex items-center gap-1.5 text-[13px] font-bold text-ios-yellow">
               <LightbulbIcon className="size-4" /> ব্যাখ্যা
             </p>
-            <p className="mt-1 text-[15px] leading-relaxed text-white/90">{q.explanation}</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-label/85">{q.explanation}</p>
           </div>
         )}
 
         {/* Footer: status on the left, the step forward on the right. */}
-        <footer className="mt-5 flex min-h-10 items-center justify-between gap-3 border-t border-white/15 pt-4">
+        <footer className="mt-5 flex min-h-10 items-center justify-between gap-3 border-t border-separator pt-4">
           <SlideStatus mode={mode} selected={selected} correctAnswer={q.correct_answer} first={index === 0} />
           <button
             type="button"
             onClick={onNext}
             className={`pressable inline-flex shrink-0 items-center gap-1 rounded-full px-4 py-2 text-[14px] font-bold ${
-              revealed ? "bg-white text-black shadow-lg" : "bg-white/15 text-white ring-1 ring-white/20"
+              revealed ? "bg-tint text-white dark:text-black" : "bg-fill text-label"
             }`}
           >
             {isLast ? "ফলাফল" : revealed ? "পরের প্রশ্ন" : "এড়িয়ে যান"} <ChevronDownIcon className="size-4 stroke-3" />
@@ -327,10 +340,10 @@ function ReelSlide({
 }
 
 function SlideStatus({ mode, selected, correctAnswer, first }: { mode: Mode; selected: string | undefined; correctAnswer: string; first: boolean }) {
-  if (mode === "study") return <p className="text-[13px] font-medium text-white/70">পড়ার মোড</p>;
+  if (mode === "study") return <p className="text-[13px] font-medium text-secondary">পড়ার মোড</p>;
   if (selected === undefined) {
     return (
-      <p className="flex min-w-0 items-center gap-1 text-[13px] font-medium text-white/70">
+      <p className="flex min-w-0 items-center gap-1 text-[13px] font-medium text-secondary">
         {first && <ChevronUpIcon className="size-4 shrink-0 animate-bounce stroke-[2.5]" />}
         {first ? "উত্তর দিন, তারপর সোয়াইপ করুন" : "একটি উত্তর বেছে নিন"}
       </p>
@@ -338,7 +351,7 @@ function SlideStatus({ mode, selected, correctAnswer, first }: { mode: Mode; sel
   }
   const right = selected === correctAnswer;
   return (
-    <p className={`inline-flex min-w-0 animate-fade-in items-center gap-1.5 text-[15px] font-bold ${right ? "text-emerald-300" : "text-red-300"}`}>
+    <p className={`inline-flex min-w-0 animate-fade-in items-center gap-1.5 text-[15px] font-bold ${right ? "text-ios-green" : "text-ios-red"}`}>
       {right ? <CheckIcon className="size-4.5 shrink-0 stroke-3" /> : <XIcon className="size-4.5 shrink-0 stroke-3" />}
       {right ? "সঠিক উত্তর!" : "ভুল উত্তর"}
     </p>
@@ -360,17 +373,17 @@ function ReelOption({
   chosen: boolean;
   onSelect: () => void;
 }) {
-  let tone = "bg-white/15 ring-white/25 active:bg-white/25";
-  let badge = "bg-white/25 text-white";
+  let tone = "bg-surface/80 ring-separator active:bg-surface";
+  let badge = "bg-fill text-secondary";
   if (revealed && correct) {
-    tone = "bg-white text-emerald-800 ring-white";
-    badge = "bg-emerald-600 text-white";
+    tone = "bg-ios-green/15 ring-ios-green/40";
+    badge = "bg-ios-green text-white dark:text-black";
   } else if (revealed && chosen) {
-    tone = "bg-red-500/90 ring-red-300/60";
-    badge = "bg-white text-red-600";
+    tone = "bg-ios-red/15 ring-ios-red/40";
+    badge = "bg-ios-red text-white";
   } else if (revealed) {
-    tone = "bg-white/10 text-white/60 ring-white/10";
-    badge = "bg-white/15 text-white/70";
+    tone = "bg-surface/50 text-secondary ring-separator";
+    badge = "bg-fill text-tertiary";
   }
 
   return (
@@ -379,21 +392,21 @@ function ReelOption({
       disabled={revealed}
       aria-pressed={chosen}
       onClick={onSelect}
-      className={`flex min-h-13 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[16px] font-medium ring-1 backdrop-blur-md transition-all duration-200 ${tone} ${
+      className={`flex min-h-13 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[16px] font-medium ring-1 transition-all duration-200 ${tone} ${
         revealed ? "cursor-default" : "cursor-pointer active:scale-[0.98]"
-      } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white`}
+      } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tint`}
     >
       <span className={`grid size-8 shrink-0 place-items-center rounded-full text-[14px] font-bold ${badge}`}>{label}</span>
       <span className="flex-1">{option}</span>
-      {revealed && correct && <CheckIcon className="size-5 shrink-0 stroke-3 text-emerald-600" />}
-      {revealed && chosen && !correct && <XIcon className="size-5 shrink-0 stroke-3" />}
+      {revealed && correct && <CheckIcon className="size-5 shrink-0 stroke-3 text-ios-green" />}
+      {revealed && chosen && !correct && <XIcon className="size-5 shrink-0 stroke-3 text-ios-red" />}
     </button>
   );
 }
 
 function ReelsTopBar({
   title,
-  organization,
+  context,
   position,
   total,
   mode,
@@ -401,7 +414,7 @@ function ReelsTopBar({
   wrong,
 }: {
   title: string;
-  organization: string;
+  context: string;
   position: number;
   total: number;
   mode: Mode;
@@ -409,39 +422,39 @@ function ReelsTopBar({
   wrong: number;
 }) {
   return (
-    <header className="px-safe pointer-events-none fixed inset-x-0 top-0 z-20 pt-[max(0.5rem,env(safe-area-inset-top))] text-white">
+    <header className="px-safe pointer-events-none fixed inset-x-0 top-0 z-20 pt-[max(0.5rem,env(safe-area-inset-top))] text-label">
       <div
-        className="mx-auto h-1 max-w-xl overflow-hidden rounded-full bg-white/25"
+        className="mx-auto h-1 max-w-xl overflow-hidden rounded-full bg-fill"
         role="progressbar"
         aria-label="অবস্থান"
         aria-valuemin={1}
         aria-valuemax={total}
         aria-valuenow={position}
       >
-        <div className="h-full rounded-full bg-white transition-[width] duration-300" style={{ width: `${(position / total) * 100}%` }} />
+        <div className="h-full rounded-full bg-tint transition-[width] duration-300" style={{ width: `${(position / total) * 100}%` }} />
       </div>
 
       <div className="mx-auto mt-2 flex max-w-xl items-center gap-2">
         <AppLink
           href="/reels"
           aria-label="রিলস তালিকায় ফিরে যান"
-          className="pressable pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full bg-black/25 backdrop-blur-md"
+          className="pressable pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full bg-surface/80 text-tint ring-[0.5px] ring-separator"
         >
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
         </AppLink>
-        <div className="min-w-0 flex-1 drop-shadow">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] leading-tight font-bold">{title}</p>
-          <p className="truncate text-[12px] text-white/80">
-            {organization} · {toBn(position)}/{toBn(total)}
+          <p className="truncate text-[12px] text-secondary">
+            {context} · {toBn(position)}/{toBn(total)}
           </p>
         </div>
         {mode === "practice" && (
           <div className="flex shrink-0 items-center gap-1 text-[12px] font-bold" aria-label={`সঠিক ${toBn(correct)}, ভুল ${toBn(wrong)}`}>
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-black/25 px-2 py-1 backdrop-blur-md">
-              <CheckIcon className="size-3.5 stroke-3 text-emerald-300" /> {toBn(correct)}
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-surface/80 px-2 py-1 ring-[0.5px] ring-separator">
+              <CheckIcon className="size-3.5 stroke-3 text-ios-green" /> {toBn(correct)}
             </span>
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-black/25 px-2 py-1 backdrop-blur-md">
-              <XIcon className="size-3.5 stroke-3 text-red-300" /> {toBn(wrong)}
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-surface/80 px-2 py-1 ring-[0.5px] ring-separator">
+              <XIcon className="size-3.5 stroke-3 text-ios-red" /> {toBn(wrong)}
             </span>
           </div>
         )}
@@ -458,7 +471,8 @@ function ActionRail({
   atStart,
   atEnd,
   onToggleMode,
-  onShare,
+  onSubjects,
+  hasSubjects,
   onReset,
   onPrev,
   onNext,
@@ -468,19 +482,20 @@ function ActionRail({
   atStart: boolean;
   atEnd: boolean;
   onToggleMode: () => void;
-  onShare: () => void;
+  onSubjects: () => void;
+  hasSubjects: boolean;
   onReset: () => void;
   onPrev: () => void;
   onNext: () => void;
 }) {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center text-white md:inset-x-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full bg-black/35 p-1.5 ring-1 ring-white/15 backdrop-blur-md md:flex md:flex-col md:gap-4 md:rounded-none md:bg-transparent md:p-0 md:ring-0 md:backdrop-blur-none">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center text-label md:inset-x-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto ios-material grid grid-cols-3 gap-1 rounded-full p-1.5 shadow-[0_8px_32px_rgb(0_0_0/0.12)] ring-[0.5px] ring-separator md:flex md:flex-col md:gap-4 md:rounded-none md:bg-transparent md:p-0 md:shadow-none md:ring-0 md:backdrop-blur-none">
         <RailButton label={mode === "practice" ? "অনুশীলন" : "পড়া"} ariaLabel={mode === "practice" ? "পড়ার মোডে যান" : "অনুশীলন মোডে যান"} onClick={onToggleMode}>
           {mode === "practice" ? <TargetIcon className="size-5 md:size-6" /> : <BookOpenIcon className="size-5 md:size-6" />}
         </RailButton>
-        <RailButton label="শেয়ার" ariaLabel="শেয়ার করুন" onClick={onShare}>
-          <ShareIcon className="size-5 md:size-6" />
+        <RailButton label="বিষয়" ariaLabel="বিষয় অনুযায়ী প্রশ্নে যান" onClick={onSubjects} disabled={!hasSubjects}>
+          <ListIcon className="size-5 md:size-6" />
         </RailButton>
         <RailButton label="আবার" ariaLabel="আবার শুরু করুন" onClick={onReset} disabled={!canReset && atStart}>
           <ResetIcon className="size-5 md:size-6" />
@@ -519,9 +534,74 @@ function RailButton({
       aria-label={ariaLabel}
       className="pressable flex h-11 min-w-22 items-center justify-center gap-1.5 rounded-full px-3 disabled:opacity-40 md:h-auto md:min-w-0 md:flex-col md:gap-1 md:px-0"
     >
-      <span className="grid place-items-center md:size-12 md:rounded-full md:bg-black/30 md:ring-1 md:ring-white/15 md:backdrop-blur-md">{children}</span>
-      {label && <span className="text-[13px] font-semibold md:text-[11px] md:drop-shadow">{label}</span>}
+      <span className="grid place-items-center text-tint md:size-12 md:rounded-full md:bg-surface md:shadow-[0_4px_16px_rgb(0_0_0/0.1)] md:ring-[0.5px] md:ring-separator">{children}</span>
+      {label && <span className="text-[13px] font-semibold md:text-[11px] md:text-secondary">{label}</span>}
     </button>
+  );
+}
+
+function SubjectList({
+  subjects,
+  questions,
+  answers,
+  mode,
+  current,
+  onPick,
+}: {
+  subjects: { name: string; indices: number[] }[];
+  questions: Question[];
+  answers: Answers;
+  mode: Mode;
+  current: string | null;
+  onPick: (indices: number[]) => void;
+}) {
+  return (
+    <ul className="overflow-hidden rounded-2xl bg-surface dark:bg-fill">
+      {subjects.map(({ name, indices }, i) => {
+        const answered = indices.filter((idx) => answers[questions[idx].question_no] !== undefined).length;
+        const done = answered === indices.length;
+        const here = name === current;
+        // Some papers interleave subjects; a number range would then wrongly include other subjects' questions.
+        const contiguous = indices.every((idx, k) => k === 0 || idx === indices[k - 1] + 1);
+        return (
+          <li key={name}>
+            <button
+              type="button"
+              onClick={() => onPick(indices)}
+              aria-current={here ? "true" : undefined}
+              className="flex w-full items-center gap-3 pl-4 text-left transition-colors active:bg-fill-strong"
+            >
+              <span
+                aria-hidden="true"
+                className={`grid size-10 shrink-0 place-items-center rounded-[10px] bg-linear-to-br text-[16px] font-bold text-white ${coverFor(name)}`}
+              >
+                {firstLetter(name)}
+              </span>
+              <div className={`min-w-0 flex-1 py-3 pr-4 ${i < subjects.length - 1 ? "hairline-b" : ""}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[17px] font-semibold">{name}</span>
+                  {here ? (
+                    <span className="shrink-0 rounded-full bg-tint/15 px-2 py-0.5 text-[12px] font-bold text-tint">এখন এখানে</span>
+                  ) : (
+                    done && mode === "practice" && <CheckIcon className="size-4.5 shrink-0 stroke-3 text-ios-green" />
+                  )}
+                </div>
+                <p className="mt-0.5 text-[13px] text-secondary">
+                  {toBn(indices.length)}টি প্রশ্ন
+                  {contiguous && indices.length > 1 && ` · প্রশ্ন ${toBn(questions[indices[0]].question_no)}–${toBn(questions[indices.at(-1)!].question_no)}`}
+                  {mode === "practice" && ` · ${toBn(answered)}টির উত্তর দেওয়া`}
+                </p>
+                {mode === "practice" && (
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-fill">
+                    <div className="h-full rounded-full bg-tint" style={{ width: `${(answered / indices.length) * 100}%` }} />
+                  </div>
+                )}
+              </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -532,24 +612,23 @@ function ScoreRing({ value, total }: { value: number; total: number }) {
   return (
     <div className="relative mx-auto size-36">
       <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="rgb(255 255 255 / 0.2)" strokeWidth="10" />
+        <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" className="stroke-fill" />
         <circle
           cx="60"
           cy="60"
           r={radius}
           fill="none"
-          stroke="white"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - fraction)}
-          className="transition-[stroke-dashoffset] duration-700"
+          className="stroke-tint transition-[stroke-dashoffset] duration-700"
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <p className="text-[40px] leading-none font-bold">
           {toBn(value)}
-          <span className="text-[20px] text-white/60">/{toBn(total)}</span>
+          <span className="text-[20px] text-tertiary">/{toBn(total)}</span>
         </p>
       </div>
     </div>
@@ -584,7 +663,7 @@ function SummaryCard({
 
   return (
     <div className="relative mx-auto w-full max-w-md text-center">
-      <p className="text-[13px] font-bold tracking-wide text-white/80">{practice ? "রিলস শেষ" : "সব প্রশ্ন পড়া শেষ"}</p>
+      <p className="text-[13px] font-bold tracking-wide text-tint">{practice ? "রিলস শেষ" : "সব প্রশ্ন পড়া শেষ"}</p>
 
       {practice ? (
         <>
@@ -592,7 +671,7 @@ function SummaryCard({
             <ScoreRing value={correct} total={total} />
           </div>
           <p className="mt-4 text-[20px] font-bold">{message}</p>
-          <dl className="mt-5 grid grid-cols-3 rounded-2xl bg-black/25 py-3 ring-1 ring-white/15 backdrop-blur-md">
+          <dl className="mt-5 grid grid-cols-3 border-y border-separator py-3">
             <SummaryStat label="উত্তর" value={toBn(answered)} />
             <SummaryStat label="ভুল" value={toBn(answered - correct)} divider />
             <SummaryStat label="নির্ভুলতা" value={`${toBn(accuracy)}%`} divider />
@@ -601,7 +680,7 @@ function SummaryCard({
       ) : (
         <>
           <p className="mt-3 text-[48px] leading-tight font-bold">{toBn(total)}</p>
-          <p className="text-[17px] text-white/85">টি প্রশ্নের উত্তর ও ব্যাখ্যা দেখেছেন</p>
+          <p className="text-[17px] text-secondary">টি প্রশ্নের উত্তর ও ব্যাখ্যা দেখেছেন</p>
         </>
       )}
 
@@ -609,7 +688,7 @@ function SummaryCard({
         <button
           type="button"
           onClick={practice ? onReset : onRestart}
-          className="pressable inline-flex h-[50px] items-center justify-center gap-2 rounded-full bg-white text-[17px] font-bold text-black shadow-lg"
+          className="pressable inline-flex h-[50px] items-center justify-center gap-2 rounded-full bg-tint text-[17px] font-bold text-white dark:text-black"
         >
           {practice ? (
             <>
@@ -623,7 +702,7 @@ function SummaryCard({
         </button>
         <AppLink
           href="/reels"
-          className="pressable inline-flex h-[50px] items-center justify-center rounded-full bg-white/15 text-[17px] font-bold ring-1 ring-white/25 backdrop-blur-md"
+          className="pressable inline-flex h-[50px] items-center justify-center rounded-full bg-fill text-[17px] font-bold text-tint"
         >
           অন্য পরীক্ষা বেছে নিন
         </AppLink>
@@ -634,8 +713,8 @@ function SummaryCard({
 
 function SummaryStat({ label, value, divider = false }: { label: string; value: string; divider?: boolean }) {
   return (
-    <div className={`flex flex-col-reverse ${divider ? "border-l border-white/15" : ""}`}>
-      <dt className="text-[12px] text-white/70">{label}</dt>
+    <div className={`flex flex-col-reverse ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
+      <dt className="text-[12px] text-secondary">{label}</dt>
       <dd className="text-[20px] font-bold">{value}</dd>
     </div>
   );
@@ -643,26 +722,22 @@ function SummaryStat({ label, value, divider = false }: { label: string; value: 
 
 export function ReelsSkeleton() {
   return (
-    <main
-      className={`fixed inset-0 flex flex-col justify-center bg-linear-to-br from-zinc-700 to-zinc-900 ${SLIDE_PADDING}`}
-      aria-busy="true"
-      aria-label="লোড হচ্ছে"
-    >
-      <div className="mx-auto w-full max-w-xl animate-pulse rounded-3xl bg-black/25 p-4 ring-1 ring-white/15 sm:p-6">
+    <main className={`fixed inset-0 flex flex-col justify-center bg-canvas ${SLIDE_PADDING}`} aria-busy="true" aria-label="লোড হচ্ছে">
+      <div className="mx-auto w-full max-w-xl">
         <div className="flex justify-between">
-          <div className="h-6 w-20 rounded-full bg-white/20" />
-          <div className="h-4 w-24 rounded-full bg-white/15" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-4 w-24 rounded-full" />
         </div>
-        <div className="mt-4 h-6 w-full rounded-lg bg-white/20" />
-        <div className="mt-2 h-6 w-2/3 rounded-lg bg-white/20" />
+        <Skeleton className="mt-4 h-6 w-full" />
+        <Skeleton className="mt-2 h-6 w-2/3" />
         <div className="mt-5 grid gap-2.5">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-13 rounded-2xl bg-white/15" />
+            <Skeleton key={i} className="h-13 rounded-2xl" />
           ))}
         </div>
-        <div className="mt-5 flex justify-between border-t border-white/15 pt-4">
-          <div className="h-4 w-28 rounded-full bg-white/15" />
-          <div className="h-9 w-24 rounded-full bg-white/20" />
+        <div className="mt-5 flex justify-between border-t border-separator pt-4">
+          <Skeleton className="h-4 w-28 rounded-full" />
+          <Skeleton className="h-9 w-24 rounded-full" />
         </div>
       </div>
     </main>

@@ -26,3 +26,13 @@ export function formatExamDate(date: string): string {
   const translated = date.replace(/[A-Za-z]+/g, (word) => BN_MONTHS[word.toLowerCase()] ?? word).replace(",", "");
   return toBn(translated);
 }
+
+// First letter of a name, keeping Bengali vowel signs attached ("যুব" -> "যু").
+export function firstLetter(text: string): string {
+  const trimmed = text.trim();
+  if (typeof Intl.Segmenter === "function") {
+    const first = new Intl.Segmenter("bn", { granularity: "grapheme" }).segment(trimmed)[Symbol.iterator]().next().value;
+    if (first) return first.segment;
+  }
+  return Array.from(trimmed)[0] ?? "";
+}

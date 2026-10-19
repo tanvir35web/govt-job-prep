@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { coverFor } from "@/lib/covers";
 import { parseExamDate } from "@/lib/exam-validation";
-import { formatExamDate, toBn } from "@/lib/format";
+import { firstLetter, formatExamDate, toBn } from "@/lib/format";
 import { getSavedSlugs, useOnline } from "@/lib/offline";
 import { loadAnswers, loadRecentExams } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
@@ -326,7 +326,7 @@ function ExamRow({ exam, progress, saved, unavailable, last }: RowProps & { last
         aria-hidden="true"
         className={`grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br text-[17px] font-bold text-white ${coverFor(info.organization)}`}
       >
-        {initial(info.organization)}
+        {firstLetter(info.organization)}
       </span>
       <div className={`flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 ${last ? "" : "hairline-b"}`}>
         <div className="min-w-0 flex-1">
@@ -360,16 +360,6 @@ function ExamRow({ exam, progress, saved, unavailable, last }: RowProps & { last
       </div>
     </AppLink>
   );
-}
-
-// First letter of the organisation, keeping Bengali vowel signs attached ("যুব" -> "যু").
-function initial(text: string) {
-  const trimmed = text.trim();
-  if (typeof Intl.Segmenter === "function") {
-    const first = new Intl.Segmenter("bn", { granularity: "grapheme" }).segment(trimmed)[Symbol.iterator]().next().value;
-    if (first) return first.segment;
-  }
-  return Array.from(trimmed)[0] ?? "";
 }
 
 const MONTH_FORMAT = new Intl.DateTimeFormat("bn-BD", { month: "long", year: "numeric", timeZone: "UTC" });
