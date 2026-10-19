@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatNumber, pluralize } from "@/lib/format";
 import {
   clearSavedExams,
@@ -377,10 +378,25 @@ function DeveloperLink({ href, icon, children }: { href: string; icon: React.Rea
   );
 }
 
+const ADMIN_TAPS = 3;
+const ADMIN_TAP_WINDOW_MS = 1500;
+
+// Tapping the version line three times in quick succession opens the admin panel, which still asks for a login.
 function AboutFooter() {
+  const router = useRouter();
+  const taps = useRef<number[]>([]);
+
+  function onVersionTap() {
+    const now = Date.now();
+    taps.current = [...taps.current.filter((t) => now - t < ADMIN_TAP_WINDOW_MS), now];
+    if (taps.current.length < ADMIN_TAPS) return;
+    taps.current = [];
+    router.push("/admin");
+  }
+
   return (
     <footer className="mt-10 text-center text-[12px] leading-relaxed text-tertiary">
-      <p>
+      <p onClick={onVersionTap} className="select-none">
         Version {formatNumber(CURRENT_BUILD.version)} · <span className="font-mono">{CURRENT_BUILD.buildId}</span>
         {CURRENT_BUILD.buildTime && <> · {formatDate(CURRENT_BUILD.buildTime)}</>}
       </p>

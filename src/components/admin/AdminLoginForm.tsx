@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertIcon, GraduationCapIcon } from "../icons";
+import { AlertIcon } from "../icons";
 
 export function AdminLoginForm() {
   const router = useRouter();
@@ -43,29 +43,21 @@ export function AdminLoginForm() {
   }
 
   const inputClass =
-    "mt-1.5 h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-base outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 dark:border-stone-700 dark:bg-stone-950";
+    "mt-1 h-10 w-full rounded-md border border-stone-300 bg-transparent px-3 text-sm outline-none transition focus:border-stone-900 dark:border-stone-700 dark:focus:border-stone-100";
 
   return (
-    <main className="grid min-h-[calc(100vh-8rem)] place-items-center px-3 py-12">
-      <div className="w-full max-w-sm">
-        <div className="text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-lg shadow-emerald-900/20">
-            <GraduationCapIcon className="size-7" />
-          </span>
-          <h1 className="mt-5 text-2xl font-bold">Admin Sign In</h1>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Sign in to upload and manage exams</p>
-        </div>
+    <main className="grid min-h-[calc(100vh-8rem)] place-items-center px-4 py-12">
+      <div className="w-full max-w-xs">
+        <h1 className="text-xl font-semibold">Admin Sign In</h1>
+        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Manage exams</p>
 
-        <form
-          onSubmit={onSubmit}
-          className="mt-8 space-y-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 dark:border-stone-800 dark:bg-stone-900"
-        >
+        <form onSubmit={onSubmit} className="mt-8 space-y-4">
           {error && (
-            <p role="alert" className="flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+            <p role="alert" className="flex items-start gap-2 text-sm text-rose-600 dark:text-rose-400">
               <AlertIcon className="mt-0.5 size-4 shrink-0" /> {error}
             </p>
           )}
-          <label className="block text-sm font-medium">
+          <label className="block text-sm text-stone-600 dark:text-stone-400">
             Username
             <input
               value={username}
@@ -77,7 +69,7 @@ export function AdminLoginForm() {
               className={inputClass}
             />
           </label>
-          <label className="block text-sm font-medium">
+          <label className="block text-sm text-stone-600 dark:text-stone-400">
             Password
             <div className="relative">
               <input
@@ -86,12 +78,12 @@ export function AdminLoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
-                className={`${inputClass} pr-20`}
+                className={`${inputClass} pr-14`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute top-1/2 right-2 mt-0.75 -translate-y-1/2 rounded-lg px-2.5 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+                className="absolute top-1/2 right-3 mt-0.5 -translate-y-1/2 text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -100,7 +92,7 @@ export function AdminLoginForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="h-12 w-full rounded-xl bg-emerald-600 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+            className="h-10 w-full rounded-md bg-stone-900 text-sm font-medium text-white transition hover:bg-stone-700 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
           >
             {submitting ? "Signing in..." : "Sign In"}
           </button>

@@ -17,17 +17,17 @@ export function JsonEditor({ value, onChange, placeholder, errorLine }: Props) {
   const lineCount = useMemo(() => (value ? value.split("\n").length : 1), [value]);
 
   return (
-    <div className="mt-4 flex h-80 resize-y overflow-hidden rounded-2xl border border-stone-300 bg-stone-50 font-mono text-[13px] leading-relaxed transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/15 sm:h-96 dark:border-stone-700 dark:bg-stone-950">
+    <div className="mt-4 flex w-full min-w-0 h-[55svh] max-h-96 min-h-60 overflow-hidden rounded-2xl border border-stone-300 bg-stone-50 font-mono text-base leading-relaxed transition sm:h-96 sm:max-h-none sm:resize-y sm:text-[13px] focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/15 dark:border-stone-700 dark:bg-stone-950">
       <div
         aria-hidden="true"
         onClick={() => textarea.current?.focus()}
-        className="shrink-0 overflow-hidden border-r border-stone-200 bg-stone-100/70 py-4 text-right text-stone-400 select-none dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-600"
+        className="shrink-0 overflow-hidden border-r border-stone-200 bg-stone-100/70 py-3 text-right text-stone-400 select-none sm:py-4 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-600"
       >
         <div style={{ transform: `translateY(${-scrollTop}px)` }}>
           {Array.from({ length: lineCount }, (_, i) => (
             <div
               key={i}
-              className={`px-3 tabular-nums ${i + 1 === errorLine ? "bg-rose-100 font-semibold text-rose-600 dark:bg-rose-500/15 dark:text-rose-400" : ""}`}
+              className={`px-2 tabular-nums sm:px-3 ${i + 1 === errorLine ? "bg-rose-100 font-semibold text-rose-600 dark:bg-rose-500/15 dark:text-rose-400" : ""}`}
             >
               {i + 1}
             </div>
@@ -43,7 +43,7 @@ export function JsonEditor({ value, onChange, placeholder, errorLine }: Props) {
         spellCheck={false}
         placeholder={placeholder}
         aria-label="Exam JSON"
-        className="h-full min-w-0 flex-1 resize-none bg-transparent p-4 whitespace-pre outline-none placeholder:text-stone-400"
+        className="h-full min-w-0 flex-1 resize-none bg-transparent p-3 whitespace-pre sm:p-4 outline-none placeholder:text-stone-400"
       />
     </div>
   );

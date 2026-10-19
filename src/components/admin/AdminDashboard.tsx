@@ -135,16 +135,16 @@ export function AdminDashboard() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-3 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <main className="px-safe mx-auto w-full min-w-0 max-w-6xl py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold sm:text-3xl">Admin Panel</h1>
           <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Paste exam JSON to upload. It appears on the site as soon as it is uploaded.</p>
         </div>
         <button
           type="button"
           onClick={logout}
-          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium transition hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
+          className="shrink-0 rounded-full border border-stone-300 px-4 py-2 text-sm font-medium transition hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
         >
           Sign Out
         </button>
@@ -190,7 +190,7 @@ export function AdminDashboard() {
         </div>
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 dark:border-stone-800 dark:bg-stone-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Upload New Exam</h2>
@@ -241,8 +241,8 @@ export function AdminDashboard() {
           {parsed.kind === "json-error" && (
             <p className="mt-3 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
               <AlertIcon className="mt-0.5 size-4 shrink-0" />
-              <span>
-                Invalid JSON: <code className="font-mono text-xs">{parsed.message}</code>
+              <span className="min-w-0 break-words">
+                Invalid JSON: <code className="font-mono text-xs break-all whitespace-pre-wrap">{parsed.message}</code>
               </span>
             </p>
           )}
@@ -252,7 +252,7 @@ export function AdminDashboard() {
               <p className="flex items-center gap-2 font-semibold">
                 <AlertIcon className="size-4" /> {pluralize(parsed.result.errors.length, "problem")} found
               </p>
-              <ul className="mt-2 list-disc space-y-0.5 pl-6">
+              <ul className="mt-2 list-disc space-y-0.5 pl-6 break-words">
                 {parsed.result.errors.map((e) => (
                   <li key={e}>{e}</li>
                 ))}
@@ -265,7 +265,7 @@ export function AdminDashboard() {
               <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                 <CheckIcon className="size-4" /> Validation passed — Preview
               </p>
-              <h3 className="mt-2 text-lg leading-snug font-semibold">{valid.data.exam_info.exam_title}</h3>
+              <h3 className="mt-2 text-lg leading-snug font-semibold break-words">{valid.data.exam_info.exam_title}</h3>
               <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
                 {valid.data.exam_info.organization} · {formatExamDate(valid.data.exam_info.exam_date)} · {valid.data.exam_info.exam_type} ·
                 Total marks {formatNumber(valid.data.exam_info.total_marks)}
@@ -295,7 +295,7 @@ export function AdminDashboard() {
                   value={slug}
                   onChange={(e) => setSlugOverride(e.target.value.toLowerCase())}
                   spellCheck={false}
-                  className={`mt-1.5 h-11 w-full rounded-xl border bg-white px-3 font-mono text-sm outline-none focus:ring-4 dark:bg-stone-950 ${
+                  className={`mt-1.5 h-11 w-full rounded-xl border bg-white px-3 font-mono text-base outline-none sm:text-sm focus:ring-4 dark:bg-stone-950 ${
                     slugValid
                       ? "border-stone-300 focus:border-emerald-500 focus:ring-emerald-500/15 dark:border-stone-700"
                       : "border-rose-400 focus:ring-rose-500/15"
