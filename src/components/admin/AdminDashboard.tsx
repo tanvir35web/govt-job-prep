@@ -9,6 +9,7 @@ import type { ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
+import { JsonEditor, jsonErrorLine } from "./JsonEditor";
 
 type Parsed = { kind: "empty" } | { kind: "json-error"; message: string } | { kind: "parsed"; raw: unknown; result: ValidationResult };
 
@@ -122,6 +123,10 @@ export function AdminDashboard() {
     router.refresh();
   }
 
+  function beautify() {
+    if (parsed.kind === "parsed") setText(JSON.stringify(parsed.raw, null, 2));
+  }
+
   async function loadFile(file: File | undefined) {
     if (!file) return;
     setText(await file.text());
@@ -189,7 +194,7 @@ export function AdminDashboard() {
         <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 dark:border-stone-800 dark:bg-stone-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Upload New Exam</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={(e) => loadFile(e.target.files?.[0])} />
               <button
                 type="button"
@@ -198,6 +203,16 @@ export function AdminDashboard() {
               >
                 Open .json File
               </button>
+              {parsed.kind === "parsed" && (
+                <button
+                  type="button"
+                  onClick={beautify}
+                  title="Format the JSON with 2-space indentation"
+                  className="rounded-xl border border-stone-300 px-3 py-1.5 text-sm font-medium transition hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
+                >
+                  Beautify
+                </button>
+              )}
               {text && (
                 <button
                   type="button"
@@ -213,16 +228,14 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          <textarea
+          <JsonEditor
             value={text}
-            onChange={(e) => {
-              setText(e.target.value);
+            onChange={(value) => {
+              setText(value);
               setNotice(null);
             }}
-            spellCheck={false}
             placeholder={SAMPLE}
-            aria-label="Exam JSON"
-            className="mt-4 h-80 w-full resize-y rounded-2xl border border-stone-300 bg-stone-50 p-4 font-mono text-[13px] leading-relaxed outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 sm:h-96 dark:border-stone-700 dark:bg-stone-950"
+            errorLine={parsed.kind === "json-error" ? jsonErrorLine(text, parsed.message) : null}
           />
 
           {parsed.kind === "json-error" && (
