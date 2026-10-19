@@ -1,0 +1,362 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+import { SLUG_PATTERN, type ValidationResult, deriveSlug, validateExamPayload } from "@/lib/exam-validation";
+import { formatExamDate, toBn } from "@/lib/format";
+import type { ExamListResponse } from "@/lib/types";
+import { useApi } from "@/lib/use-api";
+import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
+import { Skeleton } from "../StatusViews";
+
+type Parsed = { kind: "empty" } | { kind: "json-error"; message: string } | { kind: "parsed"; raw: unknown; result: ValidationResult };
+
+type Notice =
+  | { kind: "success"; slug: string; created: boolean; questions: number; warnings: string[] }
+  | { kind: "error"; message: string; errors?: string[] };
+
+const SAMPLE = `{
+  "exam_info": {
+    "exam_title": "...",
+    "organization": "...",
+    "exam_type": "MCQ",
+    "exam_date": "15 October, 2026",
+    "total_marks": 100,
+    "total_questions": 67,
+    "source_url": "https://..."
+  },
+  "questions": [
+    {
+      "question_no": 1,
+      "subject": "বাংলা",
+      "topic": "...",
+      "question": "...",
+      "options": ["...", "...", "...", "..."],
+      "correct_answer": "...",
+      "explanation": "..."
+    }
+  ]
+}`;
+
+function parse(text: string): Parsed {
+  if (!text.trim()) return { kind: "empty" };
+  try {
+    const raw: unknown = JSON.parse(text);
+    return { kind: "parsed", raw, result: validateExamPayload(raw) };
+  } catch (err) {
+    return { kind: "json-error", message: err instanceof Error ? err.message : "Invalid JSON" };
+  }
+}
+
+export function AdminDashboard() {
+  const router = useRouter();
+  const { state: listState, retry: reloadList } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const [text, setText] = useState("");
+  const [slugOverride, setSlugOverride] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const parsed = useMemo(() => parse(text), [text]);
+  const valid = parsed.kind === "parsed" && parsed.result.ok ? parsed.result : null;
+  const slug = slugOverride ?? (valid ? deriveSlug(valid.data.exam_info) : "");
+  const slugValid = SLUG_PATTERN.test(slug) && slug.length <= 120;
+  const existingExams = listState.status === "success" ? listState.data.exams : [];
+  const willOverwrite = existingExams.some((e) => e.slug === slug);
+
+  const subjects = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const q of valid?.data.questions ?? []) counts.set(q.subject, (counts.get(q.subject) ?? 0) + 1);
+    return [...counts.entries()];
+  }, [valid]);
+
+  function handleUnauthorised(res: Response) {
+    if (res.status !== 401) return false;
+    router.replace("/admin/login");
+    router.refresh();
+    return true;
+  }
+
+  async function upload() {
+    if (!valid || parsed.kind !== "parsed" || !slugValid) return;
+    if (willOverwrite && !window.confirm(`"${slug}" আগে থেকেই আছে। নতুন ডেটা দিয়ে পুরোটা বদলে দেওয়া হবে। চালিয়ে যাবেন?`)) return;
+
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/exams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, exam: parsed.raw }),
+      });
+      if (handleUnauthorised(res)) return;
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNotice({ kind: "error", message: body?.message ?? `আপলোড ব্যর্থ (${res.status})`, errors: body?.errors });
+      } else {
+        setNotice({ kind: "success", slug: body.slug, created: body.created, questions: body.questions, warnings: body.warnings ?? [] });
+        setText("");
+        setSlugOverride(null);
+        reloadList();
+        window.scrollTo({ top: 0 });
+      }
+    } catch {
+      setNotice({ kind: "error", message: "সার্ভারের সাথে যোগাযোগ করা যায়নি।" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(examSlug: string, title: string) {
+    if (!window.confirm(`"${title}" পরীক্ষাটি স্থায়ীভাবে মুছে ফেলা হবে। নিশ্চিত?`)) return;
+    const res = await fetch(`/api/admin/exams/${encodeURIComponent(examSlug)}`, { method: "DELETE" });
+    if (handleUnauthorised(res)) return;
+    if (!res.ok) window.alert("মুছে ফেলা যায়নি। আবার চেষ্টা করুন।");
+    reloadList();
+  }
+
+  async function logout() {
+    await fetch("/api/admin/logout", { method: "POST" });
+    router.replace("/admin/login");
+    router.refresh();
+  }
+
+  async function loadFile(file: File | undefined) {
+    if (!file) return;
+    setText(await file.text());
+    setSlugOverride(null);
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold sm:text-3xl">অ্যাডমিন প্যানেল</h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">পরীক্ষার JSON paste করে আপলোড করুন। আপলোডের সাথে সাথে সাইটে দেখা যাবে।</p>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium transition hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
+        >
+          লগআউট
+        </button>
+      </div>
+
+      {notice?.kind === "success" && (
+        <div className="mt-6 animate-fade-in rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-300">
+              <CheckIcon className="size-5" />
+              {notice.created ? "নতুন পরীক্ষা যোগ হয়েছে" : "পরীক্ষা আপডেট হয়েছে"} ({toBn(notice.questions)}টি প্রশ্ন)
+            </p>
+            <Link
+              href={`/exams/${notice.slug}`}
+              target="_blank"
+              className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+            >
+              সাইটে দেখুন <ExternalLinkIcon className="size-3.5" />
+            </Link>
+          </div>
+          {notice.warnings.length > 0 && (
+            <ul className="mt-2 list-disc pl-6 text-sm text-amber-700 dark:text-amber-300">
+              {notice.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {notice?.kind === "error" && (
+        <div role="alert" className="mt-6 animate-fade-in rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertIcon className="size-5" /> {notice.message}
+          </p>
+          {notice.errors && (
+            <ul className="mt-2 list-disc pl-6 text-sm">
+              {notice.errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 dark:border-stone-800 dark:bg-stone-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">নতুন পরীক্ষা আপলোড</h2>
+            <div className="flex gap-2">
+              <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={(e) => loadFile(e.target.files?.[0])} />
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                className="rounded-xl border border-stone-300 px-3 py-1.5 text-sm font-medium transition hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
+              >
+                .json ফাইল খুলুন
+              </button>
+              {text && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setText("");
+                    setSlugOverride(null);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 dark:hover:bg-stone-800"
+                >
+                  <XIcon className="size-4" /> মুছুন
+                </button>
+              )}
+            </div>
+          </div>
+
+          <textarea
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setNotice(null);
+            }}
+            spellCheck={false}
+            placeholder={SAMPLE}
+            aria-label="পরীক্ষার JSON"
+            className="mt-4 h-80 w-full resize-y rounded-2xl border border-stone-300 bg-stone-50 p-4 font-mono text-[13px] leading-relaxed outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 sm:h-96 dark:border-stone-700 dark:bg-stone-950"
+          />
+
+          {parsed.kind === "json-error" && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+              <AlertIcon className="mt-0.5 size-4 shrink-0" />
+              <span>
+                JSON সঠিক নয়: <code className="font-mono text-xs">{parsed.message}</code>
+              </span>
+            </p>
+          )}
+
+          {parsed.kind === "parsed" && !parsed.result.ok && (
+            <div className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+              <p className="flex items-center gap-2 font-semibold">
+                <AlertIcon className="size-4" /> {toBn(parsed.result.errors.length)}টি সমস্যা পাওয়া গেছে
+              </p>
+              <ul className="mt-2 list-disc space-y-0.5 pl-6">
+                {parsed.result.errors.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {valid && (
+            <div className="mt-5 animate-fade-in rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+              <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                <CheckIcon className="size-4" /> যাচাই সফল — প্রিভিউ
+              </p>
+              <h3 className="mt-2 text-lg leading-snug font-semibold">{valid.data.exam_info.exam_title}</h3>
+              <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
+                {valid.data.exam_info.organization} · {formatExamDate(valid.data.exam_info.exam_date)} · {valid.data.exam_info.exam_type} ·
+                পূর্ণমান {toBn(valid.data.exam_info.total_marks)}
+              </p>
+              <p className="mt-3 text-sm">
+                <span className="font-semibold">{toBn(valid.data.questions.length)}টি প্রশ্ন</span>
+                <span className="text-stone-500 dark:text-stone-400"> (ঘোষিত {toBn(valid.data.exam_info.total_questions)}টি)</span>
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {subjects.map(([name, count]) => (
+                  <span key={name} className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-700">
+                    {name} {toBn(count)}
+                  </span>
+                ))}
+              </div>
+              {valid.warnings.length > 0 && (
+                <ul className="mt-3 list-disc space-y-0.5 pl-5 text-sm text-amber-700 dark:text-amber-300">
+                  {valid.warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              )}
+
+              <label className="mt-4 block text-sm font-medium">
+                Slug (লিংকের শেষ অংশ)
+                <input
+                  value={slug}
+                  onChange={(e) => setSlugOverride(e.target.value.toLowerCase())}
+                  spellCheck={false}
+                  className={`mt-1.5 h-11 w-full rounded-xl border bg-white px-3 font-mono text-sm outline-none focus:ring-4 dark:bg-stone-950 ${
+                    slugValid
+                      ? "border-stone-300 focus:border-emerald-500 focus:ring-emerald-500/15 dark:border-stone-700"
+                      : "border-rose-400 focus:ring-rose-500/15"
+                  }`}
+                />
+              </label>
+              <p className="mt-1.5 text-xs break-all text-stone-500 dark:text-stone-400">
+                {slugValid ? `/exams/${slug}` : "শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও হাইফেন (-) ব্যবহার করুন।"}
+              </p>
+              {willOverwrite && slugValid && (
+                <p className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-300">এই slug-এ আগে থেকেই একটি পরীক্ষা আছে — আপলোড করলে সেটি আপডেট হবে।</p>
+              )}
+
+              <button
+                type="button"
+                onClick={upload}
+                disabled={busy || !slugValid}
+                className="mt-5 h-12 w-full rounded-xl bg-emerald-600 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 sm:w-auto sm:px-8"
+              >
+                {busy ? "আপলোড হচ্ছে..." : willOverwrite ? "আপডেট করুন" : "আপলোড করুন"}
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-24 dark:border-stone-800 dark:bg-stone-900">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">আপলোড করা পরীক্ষা</h2>
+            <button
+              type="button"
+              onClick={reloadList}
+              aria-label="তালিকা রিফ্রেশ করুন"
+              className="grid size-9 place-items-center rounded-full transition hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              <ResetIcon className="size-4" />
+            </button>
+          </div>
+
+          {listState.status === "loading" && (
+            <div className="mt-4 space-y-3">
+              <Skeleton className="h-16 rounded-2xl" />
+              <Skeleton className="h-16 rounded-2xl" />
+            </div>
+          )}
+          {listState.status === "error" && <p className="mt-4 text-sm text-rose-600">তালিকা লোড করা যায়নি।</p>}
+          {listState.status === "success" && existingExams.length === 0 && (
+            <p className="mt-4 text-sm text-stone-500 dark:text-stone-400">এখনো কোনো পরীক্ষা নেই।</p>
+          )}
+          {existingExams.length > 0 && (
+            <ul className="mt-4 divide-y divide-stone-200 dark:divide-stone-800">
+              {existingExams.map((exam) => (
+                <li key={exam.slug} className="flex items-start gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/exams/${exam.slug}`} target="_blank" className="line-clamp-2 text-sm font-medium hover:text-emerald-700 dark:hover:text-emerald-400">
+                      {exam.exam_info.exam_title}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                      {formatExamDate(exam.exam_info.exam_date)} · {toBn(exam.exam_info.total_questions)}টি প্রশ্ন
+                    </p>
+                    <p className="mt-0.5 truncate font-mono text-[11px] text-stone-400">{exam.slug}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove(exam.slug, exam.exam_info.exam_title)}
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                  >
+                    মুছুন
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}

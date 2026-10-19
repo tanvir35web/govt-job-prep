@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Govt. Job Preparation
 
-## Getting Started
+Next.js (App Router, TypeScript) + MongoDB Atlas (Mongoose), deployable on Vercel.
 
-First, run the development server:
+## Setup
 
 ```bash
+cp .env.example .env         # then set MONGODB_URI and the ADMIN_* values
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Pages
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Route | Description |
+| ----- | ----------- |
+| `/` | Exam list with search and organisation filter (calls `GET /api/exams`) |
+| `/admin` | Admin panel (login at `/admin/login`). Paste or open exam JSON, check the preview, upload. Also lists and deletes exams. |
+| `/exams/{slug}` | Exam details (calls `GET /api/exams/{slug}`). Practice mode: answer and get instant feedback; progress is saved in the browser. Study mode: all answers and explanations shown. Subject filter and question navigator. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+UI text is in Bengali, using the Hind Siliguri font. Layout is responsive for phone, tablet and desktop, with light and dark themes that follow the system setting.
 
-## Learn More
+## API
 
-To learn more about Next.js, take a look at the following resources:
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| GET | `/api/exams?page=1&limit=20` | List of exams (`slug` + `exam_info`, no questions) |
+| GET | `/api/exams/{slug}` | One exam's `exam_info` and all `questions` |
+| POST | `/api/admin/login` | `{ username, password }`; sets an httpOnly session cookie (12 h). 5 failed attempts per 15 min per IP. |
+| POST | `/api/admin/logout` | Clears the session cookie |
+| POST | `/api/admin/exams` | Admin only. `{ slug?, exam: { exam_info, questions } }`; creates or replaces the exam |
+| DELETE | `/api/admin/exams/{slug}` | Admin only. Deletes the exam |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Exams are added and removed through the admin panel at `/admin`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy (Vercel)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set `MONGODB_URI`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` in the Vercel project's environment variables, and allow Vercel's egress IPs (or `0.0.0.0/0`) in Atlas Network Access.
