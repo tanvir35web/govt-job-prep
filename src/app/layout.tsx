@@ -11,13 +11,36 @@ const hindSiliguri = Hind_Siliguri({
   weight: ["400", "500", "600", "700"],
 });
 
+// Social previews need absolute URLs. Set NEXT_PUBLIC_SITE_URL to the public domain; Vercel's production URL is the fallback.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+
+const description = "Past government job exam questions with correct answers and explanations. Study them or practise on your own.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Govt Job Prep",
     template: "%s | Govt Job Prep",
   },
-  description: "Past government job exam questions with correct answers and explanations. Study them or practise on your own.",
+  description,
   applicationName: "Govt Job Prep",
+  keywords: ["govt job", "government job", "BCS", "job exam", "question bank", "MCQ", "exam preparation", "Bangladesh"],
+  category: "education",
+  // The image comes from app/opengraph-image.tsx; Next.js adds it to these tags.
+  openGraph: {
+    type: "website",
+    siteName: "Govt Job Prep",
+    title: "Govt Job Prep",
+    description,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Govt Job Prep",
+    description,
+  },
   appleWebApp: {
     capable: true,
     title: "Job Prep",
@@ -25,6 +48,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   formatDetection: { telephone: false, email: false, address: false },
