@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
-import { getSavedSlugs, saveExamOffline, useOnline } from "@/lib/offline";
+import { getSavedSlugs, useOnline } from "@/lib/offline";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
-import { BuildingIcon, ChevronRightIcon, CircleCheckIcon, CloudDownloadIcon, SearchIcon, XIcon } from "./icons";
+import { BuildingIcon, ChevronRightIcon, CircleCheckIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
+import { PageTitle } from "./PageTitle";
 import { InstallHint } from "./pwa/InstallHint";
-import { SiteFooter } from "./SiteFooter";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 const ALL = "__all__";
@@ -25,11 +25,14 @@ export function ExamList() {
   const organizations = useMemo(() => [...new Set(exams.map((e) => e.exam_info.organization))], [exams]);
   const totalQuestions = exams.reduce((sum, e) => sum + e.exam_info.total_questions, 0);
 
-  const refreshSaved = useCallback(() => getSavedSlugs(exams.map((e) => e.slug)).then(setSaved), [exams]);
-
   useEffect(() => {
-    if (exams.length > 0) void refreshSaved();
-  }, [exams, refreshSaved]);
+    if (exams.length === 0) return;
+    let cancelled = false;
+    getSavedSlugs(exams.map((e) => e.slug)).then((slugs) => !cancelled && setSaved(slugs));
+    return () => {
+      cancelled = true;
+    };
+  }, [exams]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,17 +46,15 @@ export function ExamList() {
   return (
     <>
       <main className="px-safe mx-auto w-full max-w-3xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
-        <header className="pb-3">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-[34px] leading-tight font-bold tracking-tight">পরীক্ষাসমূহ</h1>
-            <OfflineBadge />
-          </div>
-          <p className="mt-0.5 text-[15px] text-secondary">
-            {state.status === "success"
+        <PageTitle
+          title="পরীক্ষাসমূহ"
+          trailing={<OfflineBadge />}
+          subtitle={
+            state.status === "success"
               ? `${toBn(exams.length)}টি পরীক্ষা · ${toBn(totalQuestions)}টি প্রশ্ন ও সমাধান`
-              : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"}
-          </p>
-        </header>
+              : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"
+          }
+        />
 
         <SearchField value={query} onChange={setQuery} />
 
@@ -77,8 +78,6 @@ export function ExamList() {
 
         {state.status === "success" && (
           <>
-            {online && <OfflineSaveCard exams={exams} saved={saved} onSaved={refreshSaved} />}
-
             {organizations.length > 1 && (
               <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4">
                 <FilterChip active={organization === ALL} onClick={() => setOrganization(ALL)}>
@@ -118,13 +117,11 @@ export function ExamList() {
             )}
 
             {!online && (
-              <p className="mt-2 px-4 text-[13px] text-secondary">অফলাইনে শুধু আগে খোলা বা সংরক্ষণ করা পরীক্ষাগুলো খোলা যাবে।</p>
+              <p className="mt-2 px-4 text-[13px] text-secondary">অফলাইনে শুধু আগে খোলা বা সংরক্ষণ করা পরীক্ষাগুলো খোলা যাবে। সব একসাথে সংরক্ষণ করতে সেটিংসে যান।</p>
             )}
           </>
         )}
       </main>
-
-      <SiteFooter />
     </>
   );
 }
@@ -154,74 +151,6 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
         </button>
       )}
     </div>
-  );
-}
-
-function OfflineSaveCard({ exams, saved, onSaved }: { exams: ExamListItem[]; saved: Set<string>; onSaved: () => Promise<void> }) {
-  const [workerReady, setWorkerReady] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
-
-  useEffect(() => {
-    // Resolves only once a service worker is active, which is never in `next dev`.
-    if (!("serviceWorker" in navigator)) return;
-    let cancelled = false;
-    navigator.serviceWorker.ready.then(() => !cancelled && setWorkerReady(true));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!workerReady) return null;
-
-  const pending = exams.filter((e) => !saved.has(e.slug));
-  const running = progress !== null && progress.done < progress.total;
-  const allSaved = pending.length === 0;
-
-  const saveAll = async () => {
-    let failed = 0;
-    setProgress({ done: 0, total: pending.length, failed });
-    for (const [i, exam] of pending.entries()) {
-      if (!(await saveExamOffline(exam.slug))) failed++;
-      setProgress({ done: i + 1, total: pending.length, failed });
-    }
-    await onSaved();
-  };
-
-  return (
-    <section className="mt-4 rounded-2xl bg-surface p-4" aria-label="অফলাইন সংরক্ষণ">
-      <div className="flex items-center gap-3">
-        <span
-          className={`grid size-10 shrink-0 place-items-center rounded-[10px] text-white ${allSaved ? "bg-ios-green" : "bg-tint"} dark:text-black`}
-        >
-          {allSaved ? <CircleCheckIcon className="size-5" /> : <CloudDownloadIcon className="size-5" />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-semibold">{allSaved ? "সব পরীক্ষা অফলাইনে আছে" : "অফলাইনে সংরক্ষণ"}</h2>
-          <p className="text-[13px] text-secondary">
-            {toBn(saved.size)}/{toBn(exams.length)}টি পরীক্ষা সংরক্ষিত
-          </p>
-        </div>
-        {!allSaved && (
-          <button
-            type="button"
-            onClick={saveAll}
-            disabled={running}
-            className="pressable shrink-0 rounded-full bg-fill px-3.5 py-1.5 text-[15px] font-semibold text-tint disabled:opacity-50"
-          >
-            {running ? `${toBn(progress.done)}/${toBn(progress.total)}` : "সব সংরক্ষণ"}
-          </button>
-        )}
-      </div>
-
-      {running && (
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-fill" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done}>
-          <div className="h-full rounded-full bg-tint transition-all duration-300" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
-        </div>
-      )}
-      {!running && progress && progress.failed > 0 && (
-        <p className="mt-2 text-[13px] text-ios-red">{toBn(progress.failed)}টি পরীক্ষা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।</p>
-      )}
-    </section>
   );
 }
 

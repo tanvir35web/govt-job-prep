@@ -2,8 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
-// Must match API_CACHE in public/sw.js.
+// Must match the cache names in public/sw.js.
 const API_CACHE = "api-v1";
+const PAGES_CACHE = "pages-v1";
 
 function examApiUrl(slug: string) {
   return `/api/exams/${encodeURIComponent(slug)}`;
@@ -41,6 +42,34 @@ export async function getSavedSlugs(slugs: string[]): Promise<Set<string>> {
   } catch {
     return new Set();
   }
+}
+
+/** Deletes every saved exam (questions and pages). The app shell stays cached so the app still opens offline. */
+export async function clearSavedExams(): Promise<void> {
+  if (typeof caches === "undefined") return;
+  const [api, pages] = await Promise.all([caches.open(API_CACHE), caches.open(PAGES_CACHE)]);
+  const remove = async (cache: Cache, prefix: string) => {
+    const keys = await cache.keys();
+    await Promise.all(keys.filter((r) => new URL(r.url).pathname.startsWith(prefix)).map((r) => cache.delete(r)));
+  };
+  await Promise.all([remove(api, "/api/exams/"), remove(pages, "/exams/")]);
+}
+
+/** Bytes this site stores on the device (caches, localStorage etc.), or null where the browser does not say. */
+export async function getStorageUsage(): Promise<number | null> {
+  try {
+    const estimate = await navigator.storage?.estimate?.();
+    return estimate?.usage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** True once a service worker controls the site; never true in `next dev`. */
+export async function isOfflineReady(): Promise<boolean> {
+  if (!("serviceWorker" in navigator)) return false;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return Boolean(reg?.active);
 }
 
 function subscribeOnline(callback: () => void) {

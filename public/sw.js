@@ -15,7 +15,8 @@ const KNOWN_CACHES = [STATIC_CACHE, PAGES_CACHE, API_CACHE];
 const STATIC_LIMIT = 400;
 
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = ["/", OFFLINE_URL];
+// The tab pages, so every tab opens offline from the first launch.
+const PRECACHE = ["/", "/reels", "/settings", OFFLINE_URL];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

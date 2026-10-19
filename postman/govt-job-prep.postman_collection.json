@@ -1,0 +1,417 @@
+{
+  "info": {
+    "name": "Govt. Job Preparation API",
+    "description": "সরকারি চাকরি প্রস্তুতি সাইটের সব API।\n\n**Setup**\n1. `govt-job-prep.local.postman_environment.json` import করে environment হিসেবে বেছে নিন। `baseUrl` লোকালে `http://localhost:3000`, নইলে Vercel-এর https লিংক।\n2. `adminUsername` ও `adminPassword` শুধু environment-এর **Current value**-তে লিখুন। Current value export বা sync হয় না, তাই পাসওয়ার্ড ফাইলে বা টিমে যায় না।\n3. আগে **Admin > Login** চালান। সার্ভার httpOnly `admin_session` cookie দেয়; Postman-এর cookie jar সেটা পরের admin request-এ নিজে পাঠায় (১২ ঘণ্টা বৈধ)।\n\n**নোট**\n- `next start` (production) মোডে cookie `Secure`, তাই শুধু https-এ যায়। লোকালে admin টেস্ট করতে `npm run dev` ব্যবহার করুন।\n- Login: প্রতি IP-তে ১৫ মিনিটে ৫ বার ভুল চেষ্টার পর 429।\n- Upload ও Delete request `sampleSlug` (`sample-exam-2026`) ব্যবহার করে, আসল পরীক্ষায় হাত দেয় না।\n- Folder ধরে Run করলে ক্রম অনুযায়ী চলে: Login → Upload → Validation error → Delete → Logout → Unauthorised।\n- সব response-এর আকার: `{ status: \"success\" | \"error\", code, message, ... }`।",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "slug",
+      "value": "",
+      "description": "List Exams চালালে প্রথম পরীক্ষার slug এখানে বসে যায়।"
+    },
+    {
+      "key": "sampleSlug",
+      "value": "sample-exam-2026",
+      "description": "Upload/Delete টেস্টের নমুনা পরীক্ষা।"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public",
+      "description": "লগইন ছাড়াই ব্যবহারযোগ্য। Service worker এই endpoint-গুলো অফলাইনের জন্য ক্যাশ করে।",
+      "item": [
+        {
+          "name": "List Exams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "পরীক্ষার তালিকা (`slug` + `exam_info`, প্রশ্ন ছাড়া), নতুন তারিখ আগে।\n\n`page` ডিফল্ট ১। `limit` ডিফল্ট ২০, সর্বোচ্চ ১০০।"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body status is success\", () => pm.expect(pm.response.json().status).to.eql(\"success\"));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Has pagination and exams\", () => {",
+                  "  pm.expect(body.pagination).to.include.keys(\"page\", \"limit\", \"total\", \"total_pages\");",
+                  "  pm.expect(body.exams).to.be.an(\"array\");",
+                  "});",
+                  "if (body.exams && body.exams.length) pm.collectionVariables.set(\"slug\", body.exams[0].slug);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Exam",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/{{slug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "{{slug}}"
+              ]
+            },
+            "description": "একটি পরীক্ষার `exam_info` এবং সব `questions` (question_no অনুযায়ী সাজানো)। আগে List Exams চালালে `slug` নিজে বসে যায়।"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body status is success\", () => pm.expect(pm.response.json().status).to.eql(\"success\"));",
+                  "pm.test(\"Has questions\", () => pm.expect(pm.response.json().questions).to.be.an(\"array\").that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Exam (not found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exams/no-such-exam",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exams",
+                "no-such-exam"
+              ]
+            },
+            "description": "অস্তিত্বহীন slug দিলে 404।"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Body status is error\", () => pm.expect(pm.response.json().status).to.eql(\"error\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "App Version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/version",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "version"
+              ]
+            },
+            "description": "বর্তমানে deploy করা build: `version`, `build_id`, `build_time`। অ্যাপের Settings এটার সাথে নিজের build মিলিয়ে আপডেট আছে কিনা দেখে। Response cache হয় না (`Cache-Control: no-store`)।"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has build_id\", () => pm.expect(pm.response.json().build_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.test(\"Not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "`admin_session` cookie লাগে। আগে Login চালান।",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "login"
+              ]
+            },
+            "description": "সফল হলে httpOnly `admin_session` cookie সেট হয়।\n\n- 401: ভুল username/password\n- 429: অনেকবার ভুল চেষ্টা (`Retry-After` header দেখুন)\n- 503: সার্ভারে ADMIN_* env variable সেট নেই",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body status is success\", () => pm.expect(pm.response.json().status).to.eql(\"success\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Exam (create or replace)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/exams",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "exams"
+              ]
+            },
+            "description": "পরীক্ষা তৈরি করে (201), অথবা একই slug থাকলে পুরোটা বদলে দেয় (200)।\n\n- `slug` ঐচ্ছিক; না দিলে `source_url` থেকে বানানো হয়। শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও একক হাইফেন, সর্বোচ্চ ১২০ অক্ষর।\n- Body সর্বোচ্চ ২ MB।\n- 401: লগইন নেই। 422: validation ব্যর্থ (`errors` array দেখুন)।\n- Response-এ `warnings` থাকতে পারে, যেমন total_questions আর প্রশ্নের সংখ্যা না মিললে।",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"{{sampleSlug}}\",\n  \"exam\": {\n    \"exam_info\": {\n      \"exam_title\": \"নমুনা পরীক্ষা ২০২৬\",\n      \"organization\": \"নমুনা প্রতিষ্ঠান\",\n      \"exam_type\": \"MCQ\",\n      \"exam_date\": \"1 January, 2026\",\n      \"total_marks\": 2,\n      \"total_questions\": 2,\n      \"source_url\": \"https://example.com/sample-exam-2026\"\n    },\n    \"questions\": [\n      {\n        \"question_no\": 1,\n        \"subject\": \"বাংলা\",\n        \"topic\": \"সমার্থক শব্দ\",\n        \"question\": \"'সূর্য' শব্দের সমার্থক কোনটি?\",\n        \"options\": [\n          \"রবি\",\n          \"শশী\",\n          \"নীর\",\n          \"অনল\"\n        ],\n        \"correct_answer\": \"রবি\",\n        \"explanation\": \"রবি সূর্যের একটি সমার্থক শব্দ।\"\n      },\n      {\n        \"question_no\": 2,\n        \"subject\": \"গণিত\",\n        \"topic\": \"পাটিগণিত\",\n        \"question\": \"২ + ৩ = কত?\",\n        \"options\": [\n          \"৪\",\n          \"৫\",\n          \"৬\",\n          \"৭\"\n        ],\n        \"correct_answer\": \"৫\",\n        \"explanation\": \"\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 or 201\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "pm.test(\"Returns slug\", () => pm.expect(pm.response.json().slug).to.eql(pm.collectionVariables.get(\"sampleSlug\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Exam (validation error)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/exams",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "exams"
+              ]
+            },
+            "description": "ইচ্ছাকৃত ভুল payload: খালি title, total_marks 0, একটি মাত্র option, correct_answer option-এ নেই। 422 আর `errors` তালিকা ফেরত আসে।",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": {\n    \"exam_info\": {\n      \"exam_title\": \"\",\n      \"organization\": \"নমুনা প্রতিষ্ঠান\",\n      \"exam_type\": \"MCQ\",\n      \"exam_date\": \"1 January, 2026\",\n      \"total_marks\": 0,\n      \"total_questions\": 1\n    },\n    \"questions\": [\n      {\n        \"question_no\": 1,\n        \"subject\": \"বাংলা\",\n        \"question\": \"নমুনা প্রশ্ন\",\n        \"options\": [\n          \"ক\"\n        ],\n        \"correct_answer\": \"খ\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Body status is error\", () => pm.expect(pm.response.json().status).to.eql(\"error\"));",
+                  "pm.test(\"Lists errors\", () => pm.expect(pm.response.json().errors).to.be.an(\"array\").that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Exam",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/exams/{{sampleSlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "exams",
+                "{{sampleSlug}}"
+              ]
+            },
+            "description": "পরীক্ষা মুছে ফেলে, ফেরত আনা যায় না। ডিফল্টভাবে শুধু নমুনা পরীক্ষা (`sampleSlug`) মোছে।\n\n- 401: লগইন নেই\n- 404: slug পাওয়া যায়নি"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body status is success\", () => pm.expect(pm.response.json().status).to.eql(\"success\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "logout"
+              ]
+            },
+            "description": "`admin_session` cookie মুছে দেয়।"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body status is success\", () => pm.expect(pm.response.json().status).to.eql(\"success\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Exam (unauthorised)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/exams",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "exams"
+              ]
+            },
+            "description": "Logout-এর পরে চালালে 401 আসা উচিত।",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"{{sampleSlug}}\",\n  \"exam\": {\n    \"exam_info\": {\n      \"exam_title\": \"নমুনা পরীক্ষা ২০২৬\",\n      \"organization\": \"নমুনা প্রতিষ্ঠান\",\n      \"exam_type\": \"MCQ\",\n      \"exam_date\": \"1 January, 2026\",\n      \"total_marks\": 2,\n      \"total_questions\": 2,\n      \"source_url\": \"https://example.com/sample-exam-2026\"\n    },\n    \"questions\": [\n      {\n        \"question_no\": 1,\n        \"subject\": \"বাংলা\",\n        \"topic\": \"সমার্থক শব্দ\",\n        \"question\": \"'সূর্য' শব্দের সমার্থক কোনটি?\",\n        \"options\": [\n          \"রবি\",\n          \"শশী\",\n          \"নীর\",\n          \"অনল\"\n        ],\n        \"correct_answer\": \"রবি\",\n        \"explanation\": \"রবি সূর্যের একটি সমার্থক শব্দ।\"\n      },\n      {\n        \"question_no\": 2,\n        \"subject\": \"গণিত\",\n        \"topic\": \"পাটিগণিত\",\n        \"question\": \"২ + ৩ = কত?\",\n        \"options\": [\n          \"৪\",\n          \"৫\",\n          \"৬\",\n          \"৭\"\n        ],\n        \"correct_answer\": \"৫\",\n        \"explanation\": \"\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Body status is error\", () => pm.expect(pm.response.json().status).to.eql(\"error\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

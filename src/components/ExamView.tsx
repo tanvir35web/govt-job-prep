@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
+import { answersKey, defaultModeSetting } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
@@ -52,13 +53,9 @@ export function ExamView({ slug }: { slug: string }) {
   return <ExamContent slug={slug} info={state.data.exam_info} questions={state.data.questions} />;
 }
 
-function storageKey(slug: string) {
-  return `exam-answers:${slug}`;
-}
-
 function loadAnswers(slug: string): Answers {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey(slug)) ?? "{}");
+    const parsed: unknown = JSON.parse(localStorage.getItem(answersKey(slug)) ?? "{}");
     return parsed && typeof parsed === "object" ? (parsed as Answers) : {};
   } catch {
     return {};
@@ -66,7 +63,7 @@ function loadAnswers(slug: string): Answers {
 }
 
 function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
-  const [mode, setMode] = useState<Mode>("practice");
+  const [mode, setMode] = useState<Mode>(defaultModeSetting.get);
   const [subject, setSubject] = useState(ALL);
   // Only rendered on the client after the fetch resolves, so reading localStorage here is safe.
   const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
@@ -74,7 +71,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
 
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey(slug), JSON.stringify(answers));
+      localStorage.setItem(answersKey(slug), JSON.stringify(answers));
     } catch {
       // Storage unavailable (private mode etc.); progress just won't persist.
     }

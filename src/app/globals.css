@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* The theme is chosen in Settings (light, dark or system) and resolved to data-theme on <html> before first paint. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* iOS system colours. Light values follow UIKit's grouped-background palette; dark values its elevated dark palette. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --ios-canvas: #f2f2f7;
   --ios-surface: #ffffff;
   --ios-fill: rgb(118 118 128 / 0.12);
@@ -18,22 +21,21 @@
   --ios-yellow: #b25000;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ios-canvas: #000000;
-    --ios-surface: #1c1c1e;
-    --ios-fill: rgb(118 118 128 / 0.24);
-    --ios-fill-strong: rgb(118 118 128 / 0.36);
-    --ios-separator: rgb(84 84 88 / 0.6);
-    --ios-label: #ffffff;
-    --ios-secondary: rgb(235 235 245 / 0.6);
-    --ios-tertiary: rgb(235 235 245 / 0.3);
-    --ios-bar: rgb(22 22 23 / 0.8);
-    --ios-tint: #34d399;
-    --ios-green: #30d158;
-    --ios-red: #ff453a;
-    --ios-yellow: #ffd60a;
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ios-canvas: #000000;
+  --ios-surface: #1c1c1e;
+  --ios-fill: rgb(118 118 128 / 0.24);
+  --ios-fill-strong: rgb(118 118 128 / 0.36);
+  --ios-separator: rgb(84 84 88 / 0.6);
+  --ios-label: #ffffff;
+  --ios-secondary: rgb(235 235 245 / 0.6);
+  --ios-tertiary: rgb(235 235 245 / 0.3);
+  --ios-bar: rgb(22 22 23 / 0.8);
+  --ios-tint: #34d399;
+  --ios-green: #30d158;
+  --ios-red: #ff453a;
+  --ios-yellow: #ffd60a;
 }
 
 @theme inline {

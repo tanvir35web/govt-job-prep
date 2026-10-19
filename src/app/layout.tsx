@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Hind_Siliguri } from "next/font/google";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { ThemeWatcher } from "@/components/pwa/ThemeWatcher";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
 const hindSiliguri = Hind_Siliguri({
@@ -42,10 +44,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="bn" className={`${hindSiliguri.variable} h-full antialiased`}>
+    // data-theme is set by the inline script before hydration, so React must not compare it.
+    <html lang="bn" className={`${hindSiliguri.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col font-sans">
         {children}
         <ServiceWorkerRegistrar />
+        <ThemeWatcher />
       </body>
     </html>
   );
