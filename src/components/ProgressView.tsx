@@ -84,12 +84,15 @@ export function ProgressView() {
   }, [details, exams, answers]);
 
   return (
-    <main className="px-safe mx-auto w-full max-w-2xl flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <main className="px-safe mx-auto w-full max-w-2xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <title>Progress | Govt Job Prep</title>
-      <AppLink href="/" className="pressable -ml-1.5 inline-flex h-11 items-center text-[17px] text-tint">
-        <ChevronLeftIcon className="size-6 stroke-[2.5]" /> Home
-      </AppLink>
-      <h1 className="mt-1 text-[34px] leading-tight font-bold tracking-tight">Progress</h1>
+      {/* A round back button beside the large title, like the back buttons in Reels and on exam pages. */}
+      <header className="flex items-center gap-3">
+        <AppLink href="/" aria-label="Back to Home" className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint">
+          <ChevronLeftIcon className="size-6 stroke-[2.5]" />
+        </AppLink>
+        <h1 className="text-[34px] leading-tight font-bold tracking-tight">Progress</h1>
+      </header>
 
       {state.status === "error" &&
         (state.code === 0 ? (
