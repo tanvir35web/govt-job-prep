@@ -75,7 +75,7 @@ function scrollBehavior(): ScrollBehavior {
 }
 
 // Equal side padding keeps the card centred. The top clears the top bar; on phones the bottom clears the action bar.
-const SLIDE_PADDING = "px-safe pt-[calc(5.5rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(2rem+env(safe-area-inset-bottom))]";
+const SLIDE_PADDING = "px-safe pt-[calc(6rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(2rem+env(safe-area-inset-bottom))]";
 
 function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
   const [mode, setMode] = useState<Mode>(defaultModeSetting.get);
@@ -422,42 +422,48 @@ function ReelsTopBar({
   wrong: number;
 }) {
   return (
-    <header className="px-safe pointer-events-none fixed inset-x-0 top-0 z-20 pt-[max(0.5rem,env(safe-area-inset-top))] text-label">
-      <div
-        className="mx-auto h-1 max-w-xl overflow-hidden rounded-full bg-fill"
-        role="progressbar"
-        aria-label="অবস্থান"
-        aria-valuemin={1}
-        aria-valuemax={total}
-        aria-valuenow={position}
-      >
-        <div className="h-full rounded-full bg-tint transition-[width] duration-300" style={{ width: `${(position / total) * 100}%` }} />
-      </div>
-
-      <div className="mx-auto mt-2 flex max-w-xl items-center gap-2">
+    // A floating capsule, like the tab bar on the other pages: it hovers above the slide with a gap on every side.
+    <header className="px-safe pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-20 text-label">
+      <div className="ios-material pointer-events-auto relative mx-auto flex max-w-xl items-center gap-2.5 overflow-hidden rounded-full p-1.5 pr-2 shadow-[0_8px_32px_rgb(0_0_0/0.12),0_2px_6px_rgb(0_0_0/0.05)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.5)] dark:ring-white/10">
         <AppLink
           href="/reels"
           aria-label="রিলস তালিকায় ফিরে যান"
-          className="pressable pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full bg-surface/80 text-tint ring-[0.5px] ring-separator"
+          className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
         >
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
         </AppLink>
+
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] leading-tight font-bold">{title}</p>
-          <p className="truncate text-[12px] text-secondary">
-            {context} · {toBn(position)}/{toBn(total)}
-          </p>
+          <p className="truncate text-[12px] text-secondary">{context}</p>
         </div>
+
         {mode === "practice" && (
-          <div className="flex shrink-0 items-center gap-1 text-[12px] font-bold" aria-label={`সঠিক ${toBn(correct)}, ভুল ${toBn(wrong)}`}>
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-surface/80 px-2 py-1 ring-[0.5px] ring-separator">
-              <CheckIcon className="size-3.5 stroke-3 text-ios-green" /> {toBn(correct)}
+          <div className="flex shrink-0 items-center gap-2 text-[13px] font-bold" aria-label={`সঠিক ${toBn(correct)}, ভুল ${toBn(wrong)}`}>
+            <span className="inline-flex items-center gap-0.5 text-ios-green">
+              <CheckIcon className="size-3.5 stroke-3" /> {toBn(correct)}
             </span>
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-surface/80 px-2 py-1 ring-[0.5px] ring-separator">
-              <XIcon className="size-3.5 stroke-3 text-ios-red" /> {toBn(wrong)}
+            <span className="inline-flex items-center gap-0.5 text-ios-red">
+              <XIcon className="size-3.5 stroke-3" /> {toBn(wrong)}
             </span>
           </div>
         )}
+
+        <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-[12px] font-bold text-canvas tabular-nums">
+          {toBn(position)}/{toBn(total)}
+        </span>
+
+        {/* Position in the feed, drawn as a hairline along the capsule's lower edge. */}
+        <div
+          className="absolute inset-x-6 bottom-0 h-0.5 overflow-hidden rounded-full bg-fill"
+          role="progressbar"
+          aria-label="অবস্থান"
+          aria-valuemin={1}
+          aria-valuemax={total}
+          aria-valuenow={position}
+        >
+          <div className="h-full rounded-full bg-tint transition-[width] duration-300" style={{ width: `${(position / total) * 100}%` }} />
+        </div>
       </div>
     </header>
   );
