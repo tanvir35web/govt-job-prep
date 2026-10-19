@@ -10,6 +10,10 @@ const COVERS = [
   "from-cyan-500 to-blue-700",
 ];
 
+// The "from" colour of each cover above (Tailwind's 500 shades), for places that need a plain colour
+// rather than a class, such as the browser's theme-color.
+const COVER_FROM_HEX = ["#10b981", "#0ea5e9", "#8b5cf6", "#f59e0b", "#f43f5e", "#06b6d4"];
+
 export type SoftTone = {
   /** Card background: a pale wash in light mode, a faint glow in dark mode. */
   card: string;
@@ -83,4 +87,9 @@ export function coverFor(name: string) {
 /** Soft, theme-aware tone in the same hue, for calm cards. */
 export function softToneFor(name: string): SoftTone {
   return SOFT_TONES[toneIndex(name)];
+}
+
+/** The starting colour of the name's cover gradient, as a hex string. */
+export function coverFromHex(name: string) {
+  return COVER_FROM_HEX[toneIndex(name)];
 }

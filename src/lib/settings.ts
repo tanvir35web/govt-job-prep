@@ -52,7 +52,7 @@ function setting<T extends string>(key: string, values: readonly T[], fallback: 
 export const THEMES = ["system", "light", "dark"] as const;
 export type Theme = (typeof THEMES)[number];
 
-const THEME_COLORS = { light: "#f2f2f7", dark: "#000000" };
+export const THEME_COLORS = { light: "#f2f2f7", dark: "#000000" };
 
 export const themeSetting = setting<Theme>(THEME_KEY, THEMES, "system");
 

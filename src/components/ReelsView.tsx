@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { coverFor } from "@/lib/covers";
+import { coverFor, coverFromHex } from "@/lib/covers";
 import { OPTION_LABELS, firstLetter, formatNumber, pluralize } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
-import { type Answers, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition } from "@/lib/settings";
+import { type Answers, applyTheme, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition, THEME_COLORS, themeSetting } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
@@ -157,7 +157,16 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const correct = questions.filter((q) => answers[q.question_no] === q.correct_answer).length;
   const onSummary = current >= questions.length;
   const covers = useMemo(() => [...new Set([...questions.map((q) => coverFor(q.subject)), coverFor(info.organization)])], [questions, info.organization]);
-  const activeCover = onSummary ? coverFor(info.organization) : coverFor(questions[current].subject);
+  const activeName = onSummary ? info.organization : questions[current].subject;
+  const activeCover = coverFor(activeName);
+
+  // Colour the status bar / browser bar like the top edge of the background, so the two read as one surface.
+  useEffect(() => {
+    const dark = document.documentElement.dataset.theme === "dark";
+    const color = blend(coverFromHex(activeName), dark ? THEME_COLORS.dark : THEME_COLORS.light, dark ? WASH_DARK : WASH_LIGHT);
+    for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = color;
+  }, [activeName]);
+  useEffect(() => () => applyTheme(themeSetting.get()), []);
 
   const select = (questionNo: number, option: string) => setAnswers((prev) => ({ ...prev, [questionNo]: option }));
 
@@ -266,20 +275,34 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
 // The feed's background: the theme colour with a faint wash of the current subject's gradient. It is
 // fixed to the screen rather than drawn per slide, so while the browser bars resize the viewport (and a
 // slide sits a few pixels off) the strip under the top bar never shows the previous slide's colour.
+// It overhangs the screen by 20vh at both ends, so no gap opens while the bars slide in or out or the
+// page rubber-bands. The gradient runs top to bottom and is flat over the top 15%, so the visible top
+// edge is one plain colour, which the theme-color effect above copies into the browser bar.
 // Each subject's wash is stacked once and cross-fades in when its question comes up.
+const WASH_LIGHT = 0.15;
+const WASH_DARK = 0.25;
+
 function FeedBackground({ covers, active }: { covers: string[]; active: string }) {
   return (
-    <div aria-hidden="true" className="fixed inset-0 -z-10 bg-canvas">
+    <div aria-hidden="true" className="fixed inset-x-0 -top-[20vh] -bottom-[20vh] -z-10 bg-canvas">
       {covers.map((cover) => (
         <span
           key={cover}
-          className={`absolute inset-0 bg-linear-to-br transition-opacity duration-500 motion-reduce:transition-none ${cover} ${
+          className={`absolute inset-0 bg-linear-to-b from-15% transition-opacity duration-500 motion-reduce:transition-none ${cover} ${
             cover === active ? "opacity-15 dark:opacity-25" : "opacity-0"
           }`}
         />
       ))}
     </div>
   );
+}
+
+/** Mixes a hex colour over a background hex at the given opacity, as the wash does on screen. */
+function blend(color: string, background: string, alpha: number) {
+  const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const top = channels(color);
+  const bottom = channels(background);
+  return `#${top.map((c, i) => Math.round(c * alpha + bottom[i] * (1 - alpha)).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function ReelSlide({
