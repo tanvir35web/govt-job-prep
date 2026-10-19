@@ -21,38 +21,40 @@ export function QuestionCard({
   const twoColumns = q.options.every((o) => o.length <= 32);
 
   return (
-    <article
-      id={`q-${q.question_no}`}
-      className="scroll-mt-24 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 dark:border-stone-800 dark:bg-stone-900"
-    >
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-lg bg-stone-900 px-2.5 py-1 font-semibold text-white dark:bg-white dark:text-stone-900">
-          প্রশ্ন {toBn(q.question_no)}
+    <article id={`q-${q.question_no}`} className="scroll-mt-[calc(env(safe-area-inset-top)+3.5rem)] rounded-2xl bg-surface p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+        <span className="font-semibold text-tint">প্রশ্ন {toBn(q.question_no)}</span>
+        <span aria-hidden="true" className="text-tertiary">
+          ·
         </span>
-        <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-          {q.subject}
-        </span>
-        {q.topic && <span className="text-stone-500 dark:text-stone-400">{q.topic}</span>}
+        <span className="font-medium text-secondary">{q.subject}</span>
+        {q.topic && (
+          <>
+            <span aria-hidden="true" className="text-tertiary">
+              ·
+            </span>
+            <span className="text-secondary">{q.topic}</span>
+          </>
+        )}
       </div>
 
-      <h3 className="mt-3 text-base leading-relaxed font-semibold sm:text-lg">{q.question}</h3>
+      <h3 className="mt-2 text-[17px] leading-relaxed font-semibold">{q.question}</h3>
 
-      <div className={`mt-4 grid gap-2.5 ${twoColumns ? "sm:grid-cols-2" : ""}`}>
+      <div className={`mt-3 grid gap-2 ${twoColumns ? "sm:grid-cols-2" : ""}`}>
         {q.options.map((option, i) => {
           const isCorrect = option === q.correct_answer;
           const isSelected = option === selected;
 
-          let tone =
-            "border-stone-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/50 active:scale-[0.99] dark:border-stone-700 dark:bg-stone-900 dark:hover:border-emerald-500 dark:hover:bg-emerald-500/5";
-          let labelTone = "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300";
+          let tone = "bg-fill active:bg-fill-strong";
+          let labelTone = "bg-surface text-secondary";
           if (revealed && isCorrect) {
-            tone = "border-emerald-500 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-100";
-            labelTone = "bg-emerald-600 text-white";
+            tone = "bg-ios-green/15";
+            labelTone = "bg-ios-green text-white dark:text-black";
           } else if (revealed && isSelected) {
-            tone = "border-rose-400 bg-rose-50 text-rose-900 dark:border-rose-500 dark:bg-rose-500/10 dark:text-rose-100";
-            labelTone = "bg-rose-500 text-white";
+            tone = "bg-ios-red/15";
+            labelTone = "bg-ios-red text-white";
           } else if (revealed) {
-            tone = "border-stone-200 bg-white text-stone-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400";
+            tone = "bg-fill text-secondary";
           }
 
           return (
@@ -62,37 +64,33 @@ export function QuestionCard({
               disabled={revealed}
               aria-pressed={isSelected}
               onClick={() => onSelect(option)}
-              className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-sm transition sm:text-base ${tone} ${
+              className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[16px] transition-colors ${tone} ${
                 revealed ? "cursor-default" : "cursor-pointer"
-              } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600`}
+              } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tint`}
             >
-              <span className={`grid size-8 shrink-0 place-items-center rounded-xl text-sm font-semibold ${labelTone}`}>
+              <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[14px] font-semibold ${labelTone}`}>
                 {OPTION_LABELS[i] ?? toBn(i + 1)}
               </span>
               <span className="flex-1">{option}</span>
-              {revealed && isCorrect && <CheckIcon className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
-              {revealed && isSelected && !isCorrect && <XIcon className="size-5 shrink-0 text-rose-500" />}
+              {revealed && isCorrect && <CheckIcon className="size-5 shrink-0 stroke-[2.5] text-ios-green" />}
+              {revealed && isSelected && !isCorrect && <XIcon className="size-5 shrink-0 stroke-[2.5] text-ios-red" />}
             </button>
           );
         })}
       </div>
 
       {mode === "practice" && selected !== undefined && (
-        <p
-          className={`mt-4 animate-fade-in text-sm font-semibold ${
-            answeredCorrectly ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-          }`}
-        >
+        <p className={`mt-3 animate-fade-in text-[15px] font-semibold ${answeredCorrectly ? "text-ios-green" : "text-ios-red"}`}>
           {answeredCorrectly ? "সঠিক উত্তর!" : `ভুল উত্তর। সঠিক উত্তর: ${q.correct_answer}`}
         </p>
       )}
 
       {revealed && q.explanation && (
-        <div className="mt-4 animate-fade-in rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+        <div className="mt-3 animate-fade-in rounded-xl bg-ios-yellow/10 p-3.5">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold text-ios-yellow">
             <LightbulbIcon className="size-4" /> ব্যাখ্যা
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-stone-700 sm:text-[15px] dark:text-stone-300">{q.explanation}</p>
+          <p className="mt-1 text-[15px] leading-relaxed text-label/85">{q.explanation}</p>
         </div>
       )}
     </article>

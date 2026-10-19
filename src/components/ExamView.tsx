@@ -1,44 +1,52 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
+import { saveExamOffline } from "@/lib/offline";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
-import {
-  ArrowLeftIcon,
-  AwardIcon,
-  BookOpenIcon,
-  BuildingIcon,
-  CalendarIcon,
-  ExternalLinkIcon,
-  GridIcon,
-  ListIcon,
-  ResetIcon,
-  TargetIcon,
-  XIcon,
-} from "./icons";
+import { BookOpenIcon, BuildingIcon, CalendarIcon, ExternalLinkIcon, GridIcon, ResetIcon, TargetIcon } from "./icons";
+import { NavBar } from "./NavBar";
 import { type Mode, QuestionCard } from "./QuestionCard";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 type Answers = Record<number, string>;
 
 const ALL = "__all__";
+const BACK = { href: "/", label: "পরীক্ষা" };
+const WIDTH = "max-w-3xl lg:max-w-6xl";
 
 export function ExamView({ slug }: { slug: string }) {
   const { state, retry } = useApi<ExamDetailResponse>(`/api/exams/${encodeURIComponent(slug)}`);
+  const loaded = state.status === "success";
+
+  // Once an exam has loaded, keep it (questions, page and assets) on the device for offline use.
+  useEffect(() => {
+    if (loaded && navigator.onLine) void saveExamOffline(slug);
+  }, [loaded, slug]);
 
   if (state.status === "loading") return <ExamSkeleton />;
 
   if (state.status === "error") {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        {state.code === 404 ? (
-          <ErrorState title="পরীক্ষাটি পাওয়া যায়নি" message="লিংকটি সঠিক কিনা দেখুন, অথবা তালিকা থেকে পরীক্ষা বেছে নিন।" showHomeLink />
-        ) : (
-          <ErrorState title="প্রশ্ন লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} showHomeLink />
-        )}
-      </main>
+      <>
+        <NavBar title="" back={BACK} />
+        <main className="px-safe flex-1">
+          {state.code === 404 ? (
+            <ErrorState title="পরীক্ষাটি পাওয়া যায়নি" message="লিংকটি সঠিক কিনা দেখুন, অথবা তালিকা থেকে পরীক্ষা বেছে নিন।" showHomeLink />
+          ) : state.code === 0 ? (
+            <ErrorState
+              offline
+              title="ইন্টারনেট সংযোগ নেই"
+              message="এই পরীক্ষাটি আগে খোলা হয়নি, তাই অফলাইনে পাওয়া যাচ্ছে না।"
+              onRetry={retry}
+              showHomeLink
+            />
+          ) : (
+            <ErrorState title="প্রশ্ন লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} showHomeLink />
+          )}
+        </main>
+      </>
     );
   }
 
@@ -99,70 +107,64 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   };
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-6 pb-32 sm:px-6 lg:px-8 lg:pb-16">
+    <>
       <title>{`${info.exam_title} | সরকারি চাকরি প্রস্তুতি`}</title>
+      <NavBar title={info.exam_title} back={BACK} width={WIDTH} />
 
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1.5 rounded-full py-1 text-sm font-medium text-stone-500 transition hover:text-emerald-700 dark:text-stone-400 dark:hover:text-emerald-400"
-      >
-        <ArrowLeftIcon className="size-4" /> সব পরীক্ষা
-      </Link>
+      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
+        <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
 
-      <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
-
-      <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8">
-        <div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8">
+          <div>
             <ModeToggle mode={mode} onChange={setMode} />
-            <p className="text-sm text-stone-500 dark:text-stone-400">
+            <p className="mt-2 px-1 text-[13px] text-secondary">
               {mode === "practice" ? "একটি অপশন বেছে নিন, সাথে সাথে উত্তর ও ব্যাখ্যা দেখুন।" : "সব প্রশ্নের সঠিক উত্তর ও ব্যাখ্যা দেখানো হচ্ছে।"}
             </p>
-          </div>
 
-          {subjects.length > 1 && (
-            <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-              <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="সব বিষয়" count={questions.length} />
-              {subjects.map(([name, count]) => (
-                <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />
+            {subjects.length > 1 && (
+              <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+                <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="সব বিষয়" count={questions.length} />
+                {subjects.map(([name, count]) => (
+                  <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3 sm:space-y-4">
+              {visible.map((q) => (
+                <QuestionCard
+                  key={q.question_no}
+                  question={q}
+                  mode={mode}
+                  selected={answers[q.question_no]}
+                  onSelect={(option) => select(q.question_no, option)}
+                />
               ))}
             </div>
-          )}
 
-          <div className="mt-6 space-y-4 sm:space-y-5">
-            {visible.map((q) => (
-              <QuestionCard
-                key={q.question_no}
-                question={q}
-                mode={mode}
-                selected={answers[q.question_no]}
-                onSelect={(option) => select(q.question_no, option)}
-              />
-            ))}
+            {mode === "practice" && progress.answered === progress.total && progress.total > 0 && (
+              <CompletionCard progress={progress} onReset={reset} />
+            )}
           </div>
 
-          {mode === "practice" && progress.answered === progress.total && progress.total > 0 && (
-            <CompletionCard progress={progress} onReset={reset} />
-          )}
+          <aside className="hidden lg:sticky lg:top-[calc(env(safe-area-inset-top)+3.75rem)] lg:block lg:space-y-4">
+            <ProgressCard mode={mode} progress={progress} onReset={reset} />
+            <div className="rounded-2xl bg-surface p-4">
+              <h2 className="text-[15px] font-semibold">প্রশ্নে যান</h2>
+              <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-5" />
+            </div>
+          </aside>
         </div>
+      </main>
 
-        <aside className="hidden lg:sticky lg:top-24 lg:block lg:space-y-5">
-          <ProgressCard mode={mode} progress={progress} onReset={reset} />
-          <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-            <h2 className="text-sm font-semibold">প্রশ্নে যান</h2>
-            <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-4 grid-cols-5" />
-          </div>
-        </aside>
-      </div>
-
-      <MobileProgressBar mode={mode} progress={progress} onOpenNavigator={() => setNavigatorOpen(true)} onReset={reset} />
+      <BottomToolbar mode={mode} progress={progress} onOpenNavigator={() => setNavigatorOpen(true)} onReset={reset} />
 
       {navigatorOpen && (
-        <NavigatorSheet onClose={() => setNavigatorOpen(false)}>
+        <Sheet title="প্রশ্নে যান" onClose={() => setNavigatorOpen(false)}>
           <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="grid-cols-6 sm:grid-cols-10" />
-        </NavigatorSheet>
+        </Sheet>
       )}
-    </main>
+    </>
   );
 }
 
@@ -172,61 +174,59 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
   const hasSafeSource = /^https?:\/\//i.test(info.source_url);
 
   return (
-    <section className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 p-6 text-white shadow-xl shadow-emerald-900/10 sm:p-8 lg:p-10">
-      <div aria-hidden="true" className="pointer-events-none absolute -top-20 -right-20 size-72 rounded-full bg-white/10 blur-2xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/3 size-64 rounded-full bg-teal-400/20 blur-3xl" />
-
-      <div className="relative">
-        <p className="inline-flex items-center gap-2 text-sm font-medium text-emerald-100">
-          <BuildingIcon className="size-4" /> {info.organization}
-        </p>
-        <h1 className="mt-3 max-w-3xl text-2xl leading-snug font-bold sm:text-3xl lg:text-4xl lg:leading-tight">{info.exam_title}</h1>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 backdrop-blur">
-            <CalendarIcon className="size-4" /> {formatExamDate(info.exam_date)}
-          </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold backdrop-blur">{info.exam_type}</span>
-          {hasSafeSource && (
-            <a
-              href={info.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-emerald-100 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline"
-            >
-              মূল উৎস <ExternalLinkIcon className="size-3.5" />
-            </a>
-          )}
+    <section className="mt-2 rounded-2xl bg-surface p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-700 text-white">
+          <BuildingIcon className="size-6" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] text-secondary">{info.organization}</p>
+          <h1 className="mt-0.5 text-[22px] leading-snug font-bold sm:text-[26px]">{info.exam_title}</h1>
         </div>
+      </div>
 
-        <dl className="mt-6 grid grid-cols-3 gap-2 sm:max-w-lg sm:gap-3">
-          <HeaderStat icon={<ListIcon className="size-4" />} label="মোট প্রশ্ন" value={toBn(info.total_questions)} />
-          <HeaderStat icon={<AwardIcon className="size-4" />} label="পূর্ণমান" value={toBn(info.total_marks)} />
-          <HeaderStat icon={<BookOpenIcon className="size-4" />} label="বিষয়" value={toBn(subjectCount)} />
-        </dl>
-
-        {available < info.total_questions && (
-          <p className="mt-4 text-sm text-emerald-100/90">
-            এখানে {toBn(info.total_questions)}টির মধ্যে {toBn(available)}টি প্রশ্ন যুক্ত করা হয়েছে।
-          </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-fill px-2.5 py-1 text-secondary">
+          <CalendarIcon className="size-3.5" /> {formatExamDate(info.exam_date)}
+        </span>
+        <span className="rounded-full bg-fill px-2.5 py-1 font-medium text-secondary">{info.exam_type}</span>
+        {hasSafeSource && (
+          <a
+            href={info.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pressable inline-flex items-center gap-1 px-1 py-1 font-medium text-tint"
+          >
+            মূল উৎস <ExternalLinkIcon className="size-3.5" />
+          </a>
         )}
       </div>
+
+      <dl className="mt-4 grid grid-cols-3 rounded-xl bg-fill py-2.5">
+        <HeaderStat label="প্রশ্ন" value={toBn(info.total_questions)} />
+        <HeaderStat label="পূর্ণমান" value={toBn(info.total_marks)} divider />
+        <HeaderStat label="বিষয়" value={toBn(subjectCount)} divider />
+      </dl>
+
+      {available < info.total_questions && (
+        <p className="mt-3 text-[13px] text-secondary">
+          এখানে {toBn(info.total_questions)}টির মধ্যে {toBn(available)}টি প্রশ্ন যুক্ত করা হয়েছে।
+        </p>
+      )}
     </section>
   );
 }
 
-function HeaderStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function HeaderStat({ label, value, divider = false }: { label: string; value: string; divider?: boolean }) {
   return (
-    <div className="rounded-2xl bg-white/10 px-3 py-3 ring-1 ring-white/15 backdrop-blur sm:px-4">
-      <dt className="flex items-center gap-1.5 text-xs text-emerald-100">
-        {icon}
-        {label}
-      </dt>
-      <dd className="mt-1 text-xl font-bold sm:text-2xl">{value}</dd>
+    <div className={`flex flex-col-reverse items-center ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
+      <dt className="text-[13px] text-secondary">{label}</dt>
+      <dd className="text-[22px] leading-tight font-semibold">{value}</dd>
     </div>
   );
 }
 
+// UISegmentedControl: a grey track with a raised, sliding thumb under the selected segment.
 function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const options: { value: Mode; label: string; icon: React.ReactNode }[] = [
     { value: "practice", label: "অনুশীলন", icon: <TargetIcon className="size-4" /> },
@@ -234,7 +234,12 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
   ];
 
   return (
-    <div role="radiogroup" aria-label="মোড নির্বাচন" className="grid grid-cols-2 rounded-2xl bg-stone-200/70 p-1 md:inline-grid dark:bg-stone-800">
+    <div role="radiogroup" aria-label="মোড নির্বাচন" className="relative grid grid-cols-2 rounded-[9px] bg-fill p-0.5 md:max-w-sm">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[7px] bg-white shadow-[0_3px_8px_rgb(0_0_0/0.12),0_3px_1px_rgb(0_0_0/0.04)] transition-transform duration-300 ease-out dark:bg-[#636366]"
+        style={{ transform: mode === "study" ? "translateX(100%)" : "none" }}
+      />
       {options.map((o) => (
         <button
           key={o.value}
@@ -242,10 +247,8 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
           role="radio"
           aria-checked={mode === o.value}
           onClick={() => onChange(o.value)}
-          className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition ${
-            mode === o.value
-              ? "bg-white text-emerald-700 shadow-sm dark:bg-stone-950 dark:text-emerald-400"
-              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+          className={`relative inline-flex h-8 items-center justify-center gap-1.5 text-[15px] transition-colors ${
+            mode === o.value ? "font-semibold text-label" : "font-medium text-secondary"
           }`}
         >
           {o.icon}
@@ -262,20 +265,12 @@ function SubjectChip({ active, onClick, label, count }: { active: boolean; onCli
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium whitespace-nowrap transition ${
-        active
-          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
-          : "border-stone-300 bg-white text-stone-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-500"
+      className={`pressable inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[15px] font-medium whitespace-nowrap ${
+        active ? "bg-label text-canvas" : "bg-surface text-label"
       }`}
     >
       {label}
-      <span
-        className={`rounded-full px-1.5 text-xs ${
-          active ? "bg-white/20" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
-        }`}
-      >
-        {toBn(count)}
-      </span>
+      <span className={`text-[13px] ${active ? "opacity-70" : "text-secondary"}`}>{toBn(count)}</span>
     </button>
   );
 }
@@ -284,15 +279,15 @@ function ProgressBar({ progress }: { progress: Progress }) {
   const pct = (n: number) => (progress.total ? (n / progress.total) * 100 : 0);
   return (
     <div
-      className="flex h-2 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800"
+      className="flex h-1.5 w-full overflow-hidden rounded-full bg-fill"
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={progress.total}
       aria-valuenow={progress.answered}
       aria-label="অগ্রগতি"
     >
-      <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${pct(progress.correct)}%` }} />
-      <div className="bg-rose-400 transition-all duration-500" style={{ width: `${pct(progress.wrong)}%` }} />
+      <div className="bg-ios-green transition-all duration-500" style={{ width: `${pct(progress.correct)}%` }} />
+      <div className="bg-ios-red transition-all duration-500" style={{ width: `${pct(progress.wrong)}%` }} />
     </div>
   );
 }
@@ -301,31 +296,30 @@ function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progr
   const accuracy = progress.answered ? Math.round((progress.correct / progress.answered) * 100) : 0;
 
   return (
-    <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div className="rounded-2xl bg-surface p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">আপনার অগ্রগতি</h2>
-        <span className="text-xs text-stone-500 dark:text-stone-400">
+        <h2 className="text-[15px] font-semibold">আপনার অগ্রগতি</h2>
+        <span className="text-[13px] text-secondary">
           {toBn(progress.answered)}/{toBn(progress.total)}
         </span>
       </div>
-      <p className="mt-3 text-3xl font-bold">
-        {toBn(accuracy)}%
-        <span className="ml-2 text-sm font-medium text-stone-500 dark:text-stone-400">নির্ভুলতা</span>
+      <p className="mt-2 text-[34px] leading-tight font-bold">
+        {toBn(accuracy)}%<span className="ml-2 text-[13px] font-medium text-secondary">নির্ভুলতা</span>
       </p>
-      <div className="mt-4">
+      <div className="mt-3">
         <ProgressBar progress={progress} />
       </div>
-      <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <SmallStat label="উত্তর" value={progress.answered} className="text-stone-900 dark:text-white" />
-        <SmallStat label="সঠিক" value={progress.correct} className="text-emerald-600 dark:text-emerald-400" />
-        <SmallStat label="ভুল" value={progress.wrong} className="text-rose-500" />
+      <dl className="mt-3 grid grid-cols-3 rounded-xl bg-fill py-2 text-center">
+        <SmallStat label="উত্তর" value={progress.answered} className="text-label" />
+        <SmallStat label="সঠিক" value={progress.correct} className="text-ios-green" divider />
+        <SmallStat label="ভুল" value={progress.wrong} className="text-ios-red" divider />
       </dl>
-      {mode === "study" && <p className="mt-4 text-xs text-stone-500 dark:text-stone-400">অনুশীলন মোডে উত্তর দিলে অগ্রগতি এখানে দেখা যাবে।</p>}
+      {mode === "study" && <p className="mt-3 text-[13px] text-secondary">অনুশীলন মোডে উত্তর দিলে অগ্রগতি এখানে দেখা যাবে।</p>}
       <button
         type="button"
         onClick={onReset}
         disabled={progress.answered === 0}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
+        className="pressable mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-fill text-[15px] font-semibold text-ios-red disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ResetIcon className="size-4" /> আবার শুরু করুন
       </button>
@@ -333,11 +327,11 @@ function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progr
   );
 }
 
-function SmallStat({ label, value, className }: { label: string; value: number; className: string }) {
+function SmallStat({ label, value, className, divider = false }: { label: string; value: number; className: string; divider?: boolean }) {
   return (
-    <div className="rounded-xl bg-stone-50 py-2 dark:bg-stone-800/60">
-      <dt className="text-xs text-stone-500 dark:text-stone-400">{label}</dt>
-      <dd className={`text-lg font-bold ${className}`}>{toBn(value)}</dd>
+    <div className={`flex flex-col-reverse ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
+      <dt className="text-[13px] text-secondary">{label}</dt>
+      <dd className={`text-[20px] font-semibold ${className}`}>{toBn(value)}</dd>
     </div>
   );
 }
@@ -359,12 +353,9 @@ function QuestionNavigator({
     <div className={`grid gap-2 ${className}`}>
       {questions.map((q) => {
         const answer = answers[q.question_no];
-        let tone = "border-stone-200 bg-white text-stone-700 hover:border-emerald-400 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300";
+        let tone = "bg-fill text-label";
         if (mode === "practice" && answer !== undefined) {
-          tone =
-            answer === q.correct_answer
-              ? "border-emerald-500 bg-emerald-500 text-white"
-              : "border-rose-400 bg-rose-400 text-white";
+          tone = answer === q.correct_answer ? "bg-ios-green text-white" : "bg-ios-red text-white";
         }
         return (
           <button
@@ -372,7 +363,7 @@ function QuestionNavigator({
             type="button"
             onClick={() => onJump(q.question_no)}
             aria-label={`প্রশ্ন ${toBn(q.question_no)}-এ যান`}
-            className={`aspect-square rounded-xl border text-sm font-semibold transition ${tone}`}
+            className={`pressable aspect-square rounded-full text-[15px] font-semibold ${tone}`}
           >
             {toBn(q.question_no)}
           </button>
@@ -382,7 +373,8 @@ function QuestionNavigator({
   );
 }
 
-function MobileProgressBar({
+// UIToolbar: pinned above the home indicator, translucent, with plain tint-coloured glyph buttons.
+function BottomToolbar({
   mode,
   progress,
   onOpenNavigator,
@@ -394,54 +386,59 @@ function MobileProgressBar({
   onReset: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/90 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden dark:border-stone-800 dark:bg-stone-950/90">
-      <div className="mx-auto flex max-w-3xl items-center gap-3">
-        <div className="min-w-0 flex-1">
-          {mode === "practice" ? (
-            <>
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-semibold">
-                  উত্তর {toBn(progress.answered)}/{toBn(progress.total)}
-                </span>
-                <span className="text-stone-500 dark:text-stone-400">
-                  <span className="text-emerald-600 dark:text-emerald-400">সঠিক {toBn(progress.correct)}</span>
-                  {" · "}
-                  <span className="text-rose-500">ভুল {toBn(progress.wrong)}</span>
-                </span>
-              </div>
-              <div className="mt-2">
-                <ProgressBar progress={progress} />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm font-medium text-stone-600 dark:text-stone-300">পড়ার মোড · {toBn(progress.total)}টি প্রশ্ন</p>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onOpenNavigator}
-          aria-label="প্রশ্ন তালিকা খুলুন"
-          className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm transition active:scale-95"
-        >
-          <GridIcon className="size-5" />
-        </button>
+    <div className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-20 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+      <div className="mx-auto flex max-w-3xl items-center gap-1">
         {mode === "practice" && (
           <button
             type="button"
             onClick={onReset}
             disabled={progress.answered === 0}
             aria-label="আবার শুরু করুন"
-            className="grid size-11 shrink-0 place-items-center rounded-xl border border-stone-300 transition active:scale-95 disabled:opacity-40 dark:border-stone-700"
+            className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint disabled:text-tertiary"
           >
-            <ResetIcon className="size-5" />
+            <ResetIcon className="size-[22px]" />
           </button>
         )}
+        <div className="min-w-0 flex-1 px-1">
+          {mode === "practice" ? (
+            <>
+              <div className="flex items-center justify-between gap-2 text-[13px]">
+                <span className="font-semibold">
+                  উত্তর {toBn(progress.answered)}/{toBn(progress.total)}
+                </span>
+                <span className="text-secondary">
+                  <span className="text-ios-green">সঠিক {toBn(progress.correct)}</span>
+                  {" · "}
+                  <span className="text-ios-red">ভুল {toBn(progress.wrong)}</span>
+                </span>
+              </div>
+              <div className="mt-1.5">
+                <ProgressBar progress={progress} />
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-[13px] font-medium text-secondary">পড়ার মোড · {toBn(progress.total)}টি প্রশ্ন</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onOpenNavigator}
+          aria-label="প্রশ্ন তালিকা খুলুন"
+          className="pressable -mr-2 grid size-11 shrink-0 place-items-center text-tint"
+        >
+          <GridIcon className="size-[22px]" />
+        </button>
       </div>
     </div>
   );
 }
 
-function NavigatorSheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+// iOS sheet: slides up, dims the page, and closes on Done, backdrop tap, Escape or a downward drag.
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startY = useRef(0);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     const previousOverflow = document.body.style.overflow;
@@ -453,23 +450,42 @@ function NavigatorSheet({ onClose, children }: { onClose: () => void; children: 
     };
   }, [onClose]);
 
+  const onPointerDown = (e: React.PointerEvent) => {
+    // Capturing the pointer would swallow the Done button's click.
+    if ((e.target as HTMLElement).closest("button")) return;
+    startY.current = e.clientY;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (dragging) setDragY(Math.max(0, e.clientY - startY.current));
+  };
+  const onPointerUp = () => {
+    setDragging(false);
+    if (dragY > 100) onClose();
+    else setDragY(0);
+  };
+
   return (
-    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="প্রশ্ন তালিকা">
-      <button type="button" aria-label="বন্ধ করুন" onClick={onClose} className="absolute inset-0 animate-fade-in bg-stone-950/50" />
-      <div className="absolute inset-x-0 bottom-0 max-h-[75vh] animate-fade-in overflow-y-auto rounded-t-3xl bg-white px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl dark:bg-stone-900">
-        <div className="mx-auto h-1.5 w-12 rounded-full bg-stone-300 dark:bg-stone-700" />
-        <div className="mt-4 mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">প্রশ্নে যান</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="বন্ধ করুন"
-            className="grid size-9 place-items-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800"
-          >
-            <XIcon className="size-5" />
-          </button>
+    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" aria-label="বন্ধ করুন" onClick={onClose} className="absolute inset-0 animate-backdrop-in bg-black/40" />
+      <div
+        className={`absolute inset-x-0 bottom-0 flex max-h-[85dvh] animate-sheet-up flex-col rounded-t-[14px] bg-canvas shadow-2xl dark:bg-surface ${
+          !dragging ? "transition-transform duration-300 ease-out" : ""
+        }`}
+        style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
+      >
+        <div className="touch-none select-none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+          <div className="mx-auto mt-1.5 h-[5px] w-9 rounded-full bg-tertiary" />
+          <div className="px-safe grid grid-cols-[1fr_auto_1fr] items-center py-2.5">
+            <span />
+            <h2 className="text-[17px] font-semibold">{title}</h2>
+            <button type="button" onClick={onClose} className="pressable justify-self-end text-[17px] font-semibold text-tint">
+              সম্পন্ন
+            </button>
+          </div>
         </div>
-        {children}
+        <div className="px-safe overflow-y-auto overscroll-contain pt-1 pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</div>
       </div>
     </div>
   );
@@ -480,19 +496,19 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
   const message = accuracy >= 80 ? "অসাধারণ! চমৎকার প্রস্তুতি।" : accuracy >= 50 ? "ভালো হয়েছে! আরেকটু অনুশীলন করুন।" : "হাল ছাড়বেন না, আবার চেষ্টা করুন।";
 
   return (
-    <div className="mt-8 animate-fade-in rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 text-center sm:p-8 dark:border-emerald-500/20 dark:from-emerald-500/10 dark:to-teal-500/5">
-      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">অনুশীলন সম্পন্ন</p>
-      <p className="mt-2 text-4xl font-bold sm:text-5xl">
+    <div className="mt-6 animate-fade-in rounded-2xl bg-surface p-6 text-center">
+      <p className="text-[13px] font-semibold text-tint">অনুশীলন সম্পন্ন</p>
+      <p className="mt-1 text-[48px] leading-tight font-bold">
         {toBn(progress.correct)}
-        <span className="text-2xl text-stone-400 sm:text-3xl">/{toBn(progress.total)}</span>
+        <span className="text-[28px] text-tertiary">/{toBn(progress.total)}</span>
       </p>
-      <p className="mt-2 text-stone-600 dark:text-stone-300">{message}</p>
+      <p className="mt-1 text-[15px] text-secondary">{message}</p>
       <button
         type="button"
         onClick={onReset}
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+        className="pressable mt-5 inline-flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-tint text-[17px] font-semibold text-white sm:w-auto sm:px-8 dark:text-black"
       >
-        <ResetIcon className="size-4" /> আবার অনুশীলন করুন
+        <ResetIcon className="size-5" /> আবার অনুশীলন করুন
       </button>
     </div>
   );
@@ -500,26 +516,38 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
 
 export function ExamSkeleton() {
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-6 pb-16 sm:px-6 lg:px-8" aria-busy="true" aria-label="লোড হচ্ছে">
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="mt-4 h-64 w-full rounded-3xl" />
-      <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8">
-        <div className="space-y-5">
-          <Skeleton className="h-11 w-full rounded-2xl md:w-72" />
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="mt-4 h-6 w-3/4" />
-              <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-                {Array.from({ length: 4 }, (_, j) => (
-                  <Skeleton key={j} className="h-12 rounded-2xl" />
-                ))}
-              </div>
+    <>
+      <NavBar title="" back={BACK} width={WIDTH} />
+      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
+        <div className="mt-2 rounded-2xl bg-surface p-4">
+          <div className="flex gap-3">
+            <Skeleton className="size-12 shrink-0 rounded-xl" />
+            <div className="flex-1">
+              <Skeleton className="h-3.5 w-1/3" />
+              <Skeleton className="mt-2 h-6 w-full" />
+              <Skeleton className="mt-2 h-6 w-2/3" />
             </div>
-          ))}
+          </div>
+          <Skeleton className="mt-4 h-16 w-full rounded-xl" />
         </div>
-        <Skeleton className="hidden h-80 rounded-3xl lg:block" />
-      </div>
-    </main>
+        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8">
+          <div className="space-y-3">
+            <Skeleton className="h-9 w-full rounded-[9px] md:max-w-sm" />
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="rounded-2xl bg-surface p-4">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="mt-3 h-5 w-3/4" />
+                <div className="mt-4 grid gap-2">
+                  {Array.from({ length: 4 }, (_, j) => (
+                    <Skeleton key={j} className="h-12 rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <Skeleton className="hidden h-80 rounded-2xl lg:block" />
+        </div>
+      </main>
+    </>
   );
 }

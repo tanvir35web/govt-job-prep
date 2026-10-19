@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>অফলাইন | সরকারি চাকরি প্রস্তুতি</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --canvas: #f2f2f7;
+        --surface: #ffffff;
+        --label: #000000;
+        --secondary: rgba(60, 60, 67, 0.6);
+        --tint: #047857;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --canvas: #000000;
+          --surface: #1c1c1e;
+          --label: #ffffff;
+          --secondary: rgba(235, 235, 245, 0.6);
+          --tint: #34d399;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+        background: var(--canvas);
+        color: var(--label);
+        font-family: -apple-system, "Kohinoor Bangla", "Bangla Sangam MN", system-ui, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .card {
+        width: 100%;
+        max-width: 360px;
+        padding: 32px 24px;
+        border-radius: 20px;
+        background: var(--surface);
+        text-align: center;
+      }
+      .icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: rgba(118, 118, 128, 0.12);
+        color: var(--secondary);
+      }
+      h1 {
+        margin: 20px 0 8px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--secondary);
+      }
+      .actions {
+        margin-top: 24px;
+        display: grid;
+        gap: 10px;
+      }
+      a,
+      button {
+        display: block;
+        width: 100%;
+        height: 50px;
+        border: 0;
+        border-radius: 14px;
+        font: inherit;
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 50px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button {
+        background: var(--tint);
+        color: #fff;
+      }
+      a {
+        background: rgba(118, 118, 128, 0.12);
+        color: var(--tint);
+      }
+      a:active,
+      button:active {
+        opacity: 0.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2.01-1.48M2 8.82a15 15 0 0 1 4.18-2.65M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20" />
+        </svg>
+      </div>
+      <h1>ইন্টারনেট সংযোগ নেই</h1>
+      <p>এই পাতাটি আগে খোলা হয়নি, তাই অফলাইনে পাওয়া যাচ্ছে না। আগে খোলা পরীক্ষাগুলো অফলাইনেও পড়া যাবে।</p>
+      <div class="actions">
+        <button type="button" onclick="location.reload()">আবার চেষ্টা করুন</button>
+        <a href="/">সব পরীক্ষা</a>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hind_Siliguri } from "next/font/google";
-import { SiteFooter } from "@/components/SiteFooter";
-import { SiteHeader } from "@/components/SiteHeader";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import "./globals.css";
 
 const hindSiliguri = Hind_Siliguri({
@@ -16,12 +15,28 @@ export const metadata: Metadata = {
     template: "%s | সরকারি চাকরি প্রস্তুতি",
   },
   description: "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন, সঠিক উত্তর ও ব্যাখ্যা। পড়ুন এবং নিজে অনুশীলন করুন।",
+  applicationName: "চাকরি প্রস্তুতি",
+  appleWebApp: {
+    capable: true,
+    title: "চাকরি প্রস্তুতি",
+    // "default" keeps dark status bar text on the light bar; "black-translucent" would force white text.
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  formatDetection: { telephone: false, email: false, address: false },
+  // Next.js emits only "mobile-web-app-capable"; iOS before 17.4 still reads the Apple-prefixed tag.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0a09" },
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
@@ -29,9 +44,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="bn" className={`${hindSiliguri.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
-        <SiteHeader />
-        <div className="flex-1">{children}</div>
-        <SiteFooter />
+        {children}
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

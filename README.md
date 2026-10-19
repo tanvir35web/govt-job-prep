@@ -18,7 +18,22 @@ npm run dev
 | `/admin` | Admin panel (login at `/admin/login`). Paste or open exam JSON, check the preview, upload. Also lists and deletes exams. |
 | `/exams/{slug}` | Exam details (calls `GET /api/exams/{slug}`). Practice mode: answer and get instant feedback; progress is saved in the browser. Study mode: all answers and explanations shown. Subject filter and question navigator. |
 
-UI text is in Bengali, using the Hind Siliguri font. Layout is responsive for phone, tablet and desktop, with light and dark themes that follow the system setting.
+UI text is in Bengali, using the Hind Siliguri font. The public pages follow iOS design conventions (navigation bar with large title, inset grouped lists, segmented control, bottom toolbar, sheets, safe-area insets), with light and dark themes that follow the system setting. The admin panel keeps its own header.
+
+## PWA and offline
+
+The site installs as a home-screen app (on iPhone: Safari > Share > Add to Home Screen). The service worker (`public/sw.js`) is registered only in production builds, so test it with `npm run build && npm run start`.
+
+| Cache | Contents | Strategy |
+| ----- | -------- | -------- |
+| `static-v1` | `/_next/static/*`, `/icons/*` | Cache first |
+| `pages-v1` | `/`, `/offline.html`, each opened `/exams/{slug}` | Network first, cached copy offline |
+| `api-v1` | `/api/exams` list, each opened `/api/exams/{slug}` | List: network first. Exam: stale-while-revalidate |
+
+- Opening an exam saves its questions, its page and the JS/CSS that page needs, so it opens offline later. "সব সংরক্ষণ" on the home page saves every exam at once.
+- `/admin` and `/api/admin` are never cached.
+- Bumping a cache name in `sw.js` deletes that cache on every device, including saved questions. Change it only when the stored format changes.
+- App icons in `public/icons/` were rendered from the graduation-cap glyph in `src/components/icons.tsx`.
 
 ## API
 

@@ -1,23 +1,35 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
+import { getSavedSlugs, saveExamOffline, useOnline } from "@/lib/offline";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
-import { ArrowRightIcon, AwardIcon, BuildingIcon, CalendarIcon, ListIcon, SearchIcon } from "./icons";
+import { AppLink } from "./AppLink";
+import { BuildingIcon, ChevronRightIcon, CircleCheckIcon, CloudDownloadIcon, SearchIcon, XIcon } from "./icons";
+import { NavBar } from "./NavBar";
+import { InstallHint } from "./pwa/InstallHint";
+import { SiteFooter } from "./SiteFooter";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 const ALL = "__all__";
 
 export function ExamList() {
   const { state, retry } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const online = useOnline();
   const [query, setQuery] = useState("");
   const [organization, setOrganization] = useState(ALL);
+  const [saved, setSaved] = useState<Set<string>>(() => new Set());
 
   const exams = useMemo(() => (state.status === "success" ? state.data.exams : []), [state]);
   const organizations = useMemo(() => [...new Set(exams.map((e) => e.exam_info.organization))], [exams]);
   const totalQuestions = exams.reduce((sum, e) => sum + e.exam_info.total_questions, 0);
+
+  const refreshSaved = useCallback(() => getSavedSlugs(exams.map((e) => e.slug)).then(setSaved), [exams]);
+
+  useEffect(() => {
+    if (exams.length > 0) void refreshSaved();
+  }, [exams, refreshSaved]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,68 +41,44 @@ export function ExamList() {
   }, [exams, query, organization]);
 
   return (
-    <main>
-      <section className="relative overflow-hidden border-b border-stone-200 dark:border-stone-800">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-32 left-1/2 h-80 w-[44rem] -translate-x-1/2 rounded-full bg-emerald-300/30 blur-3xl dark:bg-emerald-500/10" />
-          <div className="absolute -bottom-24 -right-16 h-64 w-64 rounded-full bg-amber-200/40 blur-3xl dark:bg-amber-500/5" />
+    <>
+      <NavBar
+        title="পরীক্ষাসমূহ"
+        largeTitle
+        subtitle={
+          state.status === "success"
+            ? `${toBn(exams.length)}টি পরীক্ষা · ${toBn(totalQuestions)}টি প্রশ্ন ও সমাধান`
+            : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"
+        }
+      />
+
+      <main className="px-safe mx-auto w-full max-w-3xl flex-1 pb-4">
+        <SearchField value={query} onChange={setQuery} />
+
+        <div className="mt-4 space-y-4">
+          <InstallHint />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/70 px-3 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            সমাধানসহ বিগত প্রশ্ন
-          </span>
-          <h1 className="mt-5 max-w-3xl text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl lg:leading-tight">
-            বিগত সরকারি চাকরি পরীক্ষার{" "}
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-400 dark:to-teal-300">
-              প্রশ্ন ও সমাধান
-            </span>
-          </h1>
-          <p className="mt-4 max-w-2xl text-base text-stone-600 sm:text-lg dark:text-stone-300">
-            একটি পরীক্ষা বেছে নিন। প্রতিটি প্রশ্নের সঠিক উত্তর ও ব্যাখ্যা পড়ুন, অথবা নিজে উত্তর দিয়ে অনুশীলন করুন।
-          </p>
+        {state.status === "loading" && <ExamListSkeleton />}
 
-          <div className="mt-8 flex max-w-xl items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/15 dark:border-stone-700 dark:bg-stone-900">
-            <SearchIcon className="size-5 shrink-0 text-stone-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="পরীক্ষা বা প্রতিষ্ঠানের নাম লিখুন..."
-              aria-label="পরীক্ষা খুঁজুন"
-              className="h-12 w-full bg-transparent text-base outline-none placeholder:text-stone-400"
+        {state.status === "error" &&
+          (state.code === 0 ? (
+            <ErrorState
+              offline
+              title="ইন্টারনেট সংযোগ নেই"
+              message="পরীক্ষার তালিকা এখনো এই ডিভাইসে সংরক্ষিত হয়নি। ইন্টারনেট চালু করে আবার চেষ্টা করুন।"
+              onRetry={retry}
             />
-          </div>
-
-          {state.status === "success" && (
-            <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm">
-              <Stat label="পরীক্ষা" value={`${toBn(exams.length)}টি`} />
-              <Stat label="মোট প্রশ্ন" value={`${toBn(totalQuestions)}টি`} />
-              <Stat label="প্রতিষ্ঠান" value={`${toBn(organizations.length)}টি`} />
-            </dl>
-          )}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        {state.status === "loading" && <ExamGridSkeleton />}
-
-        {state.status === "error" && (
-          <ErrorState title="পরীক্ষার তালিকা লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} />
-        )}
+          ) : (
+            <ErrorState title="পরীক্ষার তালিকা লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} />
+          ))}
 
         {state.status === "success" && (
           <>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">সব পরীক্ষা</h2>
-                <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{toBn(filtered.length)}টি পরীক্ষা দেখানো হচ্ছে</p>
-              </div>
-            </div>
+            {online && <OfflineSaveCard exams={exams} saved={saved} onSaved={refreshSaved} />}
 
             {organizations.length > 1 && (
-              <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+              <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4">
                 <FilterChip active={organization === ALL} onClick={() => setOrganization(ALL)}>
                   সব
                 </FilterChip>
@@ -102,34 +90,136 @@ export function ExamList() {
               </div>
             )}
 
+            <h2 className="mt-6 px-4 text-[13px] text-secondary">
+              {query || organization !== ALL ? `${toBn(filtered.length)}টি ফলাফল` : "সব পরীক্ষা"}
+            </h2>
+
             {filtered.length === 0 ? (
-              <div className="mt-8 rounded-3xl border border-dashed border-stone-300 px-6 py-16 text-center dark:border-stone-700">
-                <SearchIcon className="mx-auto size-8 text-stone-400" />
-                <p className="mt-3 font-medium">কোনো পরীক্ষা পাওয়া যায়নি</p>
-                <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">অন্য কোনো শব্দ দিয়ে খুঁজে দেখুন।</p>
+              <div className="mt-2 rounded-2xl bg-surface px-6 py-12 text-center">
+                <SearchIcon className="mx-auto size-8 text-tertiary" />
+                <p className="mt-3 text-[17px] font-semibold">কোনো পরীক্ষা পাওয়া যায়নি</p>
+                <p className="mt-1 text-[15px] text-secondary">অন্য কোনো শব্দ দিয়ে খুঁজে দেখুন।</p>
               </div>
             ) : (
-              <ul className="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-                {filtered.map((exam) => (
+              <ul className="mt-2 overflow-hidden rounded-2xl bg-surface">
+                {filtered.map((exam, i) => (
                   <li key={exam.slug}>
-                    <ExamCard exam={exam} />
+                    <ExamRow
+                      exam={exam}
+                      saved={saved.has(exam.slug)}
+                      unavailable={!online && !saved.has(exam.slug)}
+                      last={i === filtered.length - 1}
+                    />
                   </li>
                 ))}
               </ul>
             )}
+
+            {!online && (
+              <p className="mt-2 px-4 text-[13px] text-secondary">অফলাইনে শুধু আগে খোলা বা সংরক্ষণ করা পরীক্ষাগুলো খোলা যাবে।</p>
+            )}
           </>
         )}
-      </section>
-    </main>
+      </main>
+
+      <SiteFooter />
+    </>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function SearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
-    <div className="flex items-baseline gap-2">
-      <dt className="text-stone-500 dark:text-stone-400">{label}</dt>
-      <dd className="text-lg font-bold text-stone-900 dark:text-white">{value}</dd>
+    <div className="flex h-10 items-center gap-1.5 rounded-[10px] bg-fill px-2">
+      <SearchIcon className="size-4.5 shrink-0 text-secondary" />
+      {/* 17px keeps iOS Safari from zooming in when the field is focused. */}
+      <input
+        type="search"
+        enterKeyHint="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="পরীক্ষা বা প্রতিষ্ঠান খুঁজুন"
+        aria-label="পরীক্ষা খুঁজুন"
+        className="h-full min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-secondary [&::-webkit-search-cancel-button]:hidden"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="মুছে ফেলুন"
+          className="pressable grid size-5 shrink-0 place-items-center rounded-full bg-tertiary text-surface"
+        >
+          <XIcon className="size-3 stroke-3" />
+        </button>
+      )}
     </div>
+  );
+}
+
+function OfflineSaveCard({ exams, saved, onSaved }: { exams: ExamListItem[]; saved: Set<string>; onSaved: () => Promise<void> }) {
+  const [workerReady, setWorkerReady] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
+
+  useEffect(() => {
+    // Resolves only once a service worker is active, which is never in `next dev`.
+    if (!("serviceWorker" in navigator)) return;
+    let cancelled = false;
+    navigator.serviceWorker.ready.then(() => !cancelled && setWorkerReady(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!workerReady) return null;
+
+  const pending = exams.filter((e) => !saved.has(e.slug));
+  const running = progress !== null && progress.done < progress.total;
+  const allSaved = pending.length === 0;
+
+  const saveAll = async () => {
+    let failed = 0;
+    setProgress({ done: 0, total: pending.length, failed });
+    for (const [i, exam] of pending.entries()) {
+      if (!(await saveExamOffline(exam.slug))) failed++;
+      setProgress({ done: i + 1, total: pending.length, failed });
+    }
+    await onSaved();
+  };
+
+  return (
+    <section className="mt-4 rounded-2xl bg-surface p-4" aria-label="অফলাইন সংরক্ষণ">
+      <div className="flex items-center gap-3">
+        <span
+          className={`grid size-10 shrink-0 place-items-center rounded-[10px] text-white ${allSaved ? "bg-ios-green" : "bg-tint"} dark:text-black`}
+        >
+          {allSaved ? <CircleCheckIcon className="size-5" /> : <CloudDownloadIcon className="size-5" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-semibold">{allSaved ? "সব পরীক্ষা অফলাইনে আছে" : "অফলাইনে সংরক্ষণ"}</h2>
+          <p className="text-[13px] text-secondary">
+            {toBn(saved.size)}/{toBn(exams.length)}টি পরীক্ষা সংরক্ষিত
+          </p>
+        </div>
+        {!allSaved && (
+          <button
+            type="button"
+            onClick={saveAll}
+            disabled={running}
+            className="pressable shrink-0 rounded-full bg-fill px-3.5 py-1.5 text-[15px] font-semibold text-tint disabled:opacity-50"
+          >
+            {running ? `${toBn(progress.done)}/${toBn(progress.total)}` : "সব সংরক্ষণ"}
+          </button>
+        )}
+      </div>
+
+      {running && (
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-fill" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done}>
+          <div className="h-full rounded-full bg-tint transition-all duration-300" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
+        </div>
+      )}
+      {!running && progress && progress.failed > 0 && (
+        <p className="mt-2 text-[13px] text-ios-red">{toBn(progress.failed)}টি পরীক্ষা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।</p>
+      )}
+    </section>
   );
 }
 
@@ -139,10 +229,8 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium whitespace-nowrap transition ${
-        active
-          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
-          : "border-stone-300 bg-white text-stone-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+      className={`pressable shrink-0 rounded-full px-3.5 py-1.5 text-[15px] font-medium whitespace-nowrap ${
+        active ? "bg-label text-canvas" : "bg-surface text-label"
       }`}
     >
       {children}
@@ -150,74 +238,53 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function ExamCard({ exam }: { exam: ExamListItem }) {
+function ExamRow({ exam, saved, unavailable, last }: { exam: ExamListItem; saved: boolean; unavailable: boolean; last: boolean }) {
   const info = exam.exam_info;
   return (
-    <Link
+    <AppLink
       href={`/exams/${exam.slug}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:p-6 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-500/50"
+      className={`flex items-center gap-3 pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
     >
-      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 transition group-hover:opacity-100" />
-
-      <div className="flex items-start justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-          <BuildingIcon className="size-4 shrink-0" />
-          <span className="line-clamp-1">{info.organization}</span>
-        </span>
-        <span className="shrink-0 rounded-md bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-          {info.exam_type}
-        </span>
-      </div>
-
-      <h3 className="mt-3 text-lg leading-snug font-semibold text-stone-900 dark:text-white">{info.exam_title}</h3>
-
-      <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-stone-500 dark:text-stone-400">
-        <CalendarIcon className="size-4" />
-        {formatExamDate(info.exam_date)}
-      </p>
-
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <MiniStat icon={<ListIcon className="size-4" />} label="প্রশ্ন" value={toBn(info.total_questions)} />
-        <MiniStat icon={<AwardIcon className="size-4" />} label="নম্বর" value={toBn(info.total_marks)} />
-      </div>
-
-      <span className="mt-auto flex items-center justify-between pt-6 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-        প্রশ্ন ও সমাধান দেখুন
-        <span className="grid size-8 place-items-center rounded-full bg-emerald-50 transition group-hover:translate-x-1 group-hover:bg-emerald-600 group-hover:text-white dark:bg-emerald-500/10">
-          <ArrowRightIcon className="size-4" />
-        </span>
+      <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-linear-to-br from-emerald-500 to-teal-700 text-white">
+        <BuildingIcon className="size-5" />
       </span>
-    </Link>
-  );
-}
-
-function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-stone-50 px-3 py-2.5 dark:bg-stone-800/60">
-      <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
-        {icon}
-        {label}
+      <div className={`flex min-w-0 flex-1 items-center gap-2 py-3 pr-3 ${last ? "" : "hairline-b"}`}>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-[17px] leading-snug font-semibold">{info.exam_title}</p>
+          <p className="mt-0.5 truncate text-[13px] text-secondary">
+            {info.organization} · {formatExamDate(info.exam_date)}
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-secondary">
+            <span>{toBn(info.total_questions)}টি প্রশ্ন</span>
+            <span aria-hidden="true">·</span>
+            <span>{toBn(info.total_marks)} নম্বর</span>
+            <span aria-hidden="true">·</span>
+            <span>{info.exam_type}</span>
+            {saved && (
+              <span className="inline-flex items-center gap-0.5 text-ios-green">
+                <CircleCheckIcon className="size-3.5" /> অফলাইন
+              </span>
+            )}
+          </p>
+        </div>
+        <ChevronRightIcon className="size-5 shrink-0 text-tertiary stroke-[2.5]" />
       </div>
-      <div className="mt-0.5 text-lg font-bold">{value}</div>
-    </div>
+    </AppLink>
   );
 }
 
-function ExamGridSkeleton() {
+function ExamListSkeleton() {
   return (
-    <div aria-busy="true" aria-label="লোড হচ্ছে">
-      <Skeleton className="h-7 w-40" />
-      <Skeleton className="mt-2 h-4 w-28" />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+    <div aria-busy="true" aria-label="লোড হচ্ছে" className="mt-6">
+      <Skeleton className="ml-4 h-3.5 w-24" />
+      <div className="mt-2 overflow-hidden rounded-2xl bg-surface">
         {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="rounded-3xl border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="mt-4 h-6 w-full" />
-            <Skeleton className="mt-2 h-6 w-2/3" />
-            <Skeleton className="mt-4 h-4 w-1/3" />
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <Skeleton className="h-16 rounded-2xl" />
-              <Skeleton className="h-16 rounded-2xl" />
+          <div key={i} className="flex items-center gap-3 pl-4">
+            <Skeleton className="size-10 shrink-0 rounded-[10px]" />
+            <div className={`flex-1 py-3.5 pr-4 ${i < 5 ? "hairline-b" : ""}`}>
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="mt-2 h-3 w-1/2" />
+              <Skeleton className="mt-2 h-3 w-2/3" />
             </div>
           </div>
         ))}

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SiteFooter } from "@/components/SiteFooter";
+import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
   title: "অ্যাডমিন",
@@ -6,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
-  return children;
+  return (
+    <>
+      <SiteHeader />
+      <div className="flex-1">{children}</div>
+      <SiteFooter />
+    </>
+  );
 }
