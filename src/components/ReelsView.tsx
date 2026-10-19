@@ -73,9 +73,8 @@ function scrollBehavior(): ScrollBehavior {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
-// Room kept clear for the top bar, and on phones for the action rail on the right.
-const SLIDE_PADDING =
-  "pt-[calc(5.5rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[calc(4.5rem+env(safe-area-inset-right))] md:pr-[max(1rem,env(safe-area-inset-right))]";
+// Equal side padding keeps the card centred. The top clears the top bar; on phones the bottom clears the action bar.
+const SLIDE_PADDING = "px-safe pt-[calc(5.5rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(2rem+env(safe-area-inset-bottom))]";
 
 function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
   const [mode, setMode] = useState<Mode>(defaultModeSetting.get);
@@ -234,7 +233,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
       />
 
       {toast && (
-        <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
+        <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] flex justify-center px-4">
           <p className="animate-fade-in rounded-full bg-black/75 px-4 py-2 text-[14px] font-medium text-white backdrop-blur-md">{toast}</p>
         </div>
       )}
@@ -275,14 +274,16 @@ function ReelSlide({
       {/* Darkens the top and bottom so the bars and white text stay readable on any gradient. */}
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-b from-black/45 via-black/15 to-black/55" />
 
-      <div className="relative mx-auto w-full max-w-xl">
-        <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
-          <span className="rounded-full bg-white px-2.5 py-1 text-black">প্রশ্ন {toBn(q.question_no)}</span>
-          <span className="rounded-full bg-white/20 px-2.5 py-1 backdrop-blur-sm">{q.subject}</span>
-          {q.topic && <span className="rounded-full bg-white/10 px-2.5 py-1 font-medium text-white/85 backdrop-blur-sm">{q.topic}</span>}
-        </div>
+      <article className="relative mx-auto w-full max-w-xl rounded-3xl bg-black/25 p-4 ring-1 ring-white/15 backdrop-blur-md sm:p-6">
+        <header className="flex items-center justify-between gap-3 text-[12px] font-semibold">
+          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-black">প্রশ্ন {toBn(q.question_no)}</span>
+          <span className="min-w-0 truncate text-right text-white/80">
+            {q.subject}
+            {q.topic && <span className="font-medium text-white/60"> · {q.topic}</span>}
+          </span>
+        </header>
 
-        <h2 className={`mt-4 leading-snug font-bold text-balance drop-shadow-sm ${long ? "text-[19px]" : "text-[23px] sm:text-[26px]"}`}>{q.question}</h2>
+        <h2 className={`mt-4 leading-snug font-bold text-balance ${long ? "text-[18px]" : "text-[21px] sm:text-[24px]"}`}>{q.question}</h2>
 
         <div className="mt-5 grid gap-2.5">
           {q.options.map((option, i) => (
@@ -298,51 +299,49 @@ function ReelSlide({
           ))}
         </div>
 
-        {mode === "practice" && selected !== undefined && (
-          <p
-            className={`mt-4 inline-flex animate-fade-in items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-bold ${
-              selected === q.correct_answer ? "bg-white text-emerald-700" : "bg-red-500 text-white"
-            }`}
-          >
-            {selected === q.correct_answer ? (
-              <>
-                <CheckIcon className="size-4 stroke-3" /> সঠিক উত্তর!
-              </>
-            ) : (
-              <>
-                <XIcon className="size-4 stroke-3" /> ভুল উত্তর
-              </>
-            )}
-          </p>
-        )}
-
         {revealed && q.explanation && (
-          <div className="mt-4 animate-fade-in rounded-2xl bg-black/30 p-4 ring-1 ring-white/15 backdrop-blur-md">
+          <div className="mt-4 animate-fade-in rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10">
             <p className="flex items-center gap-1.5 text-[13px] font-bold text-amber-200">
               <LightbulbIcon className="size-4" /> ব্যাখ্যা
             </p>
-            <p className="mt-1.5 text-[15px] leading-relaxed text-white/90">{q.explanation}</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-white/90">{q.explanation}</p>
           </div>
         )}
 
-        {revealed ? (
+        {/* Footer: status on the left, the step forward on the right. */}
+        <footer className="mt-5 flex min-h-10 items-center justify-between gap-3 border-t border-white/15 pt-4">
+          <SlideStatus mode={mode} selected={selected} correctAnswer={q.correct_answer} first={index === 0} />
           <button
             type="button"
             onClick={onNext}
-            className="pressable mx-auto mt-6 flex animate-fade-in items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-[15px] font-bold text-black shadow-lg"
+            className={`pressable inline-flex shrink-0 items-center gap-1 rounded-full px-4 py-2 text-[14px] font-bold ${
+              revealed ? "bg-white text-black shadow-lg" : "bg-white/15 text-white ring-1 ring-white/20"
+            }`}
           >
-            {isLast ? "ফলাফল দেখুন" : "পরের প্রশ্ন"} <ChevronDownIcon className="size-4.5 stroke-3" />
+            {isLast ? "ফলাফল" : revealed ? "পরের প্রশ্ন" : "এড়িয়ে যান"} <ChevronDownIcon className="size-4 stroke-3" />
           </button>
-        ) : (
-          index === 0 && (
-            <p className="mt-8 flex flex-col items-center gap-1 text-center text-[13px] font-medium text-white/80">
-              <ChevronUpIcon className="size-5 animate-bounce stroke-[2.5]" />
-              উত্তর দিন, তারপর উপরে সোয়াইপ করে পরের প্রশ্নে যান
-            </p>
-          )
-        )}
-      </div>
+        </footer>
+      </article>
     </section>
+  );
+}
+
+function SlideStatus({ mode, selected, correctAnswer, first }: { mode: Mode; selected: string | undefined; correctAnswer: string; first: boolean }) {
+  if (mode === "study") return <p className="text-[13px] font-medium text-white/70">পড়ার মোড</p>;
+  if (selected === undefined) {
+    return (
+      <p className="flex min-w-0 items-center gap-1 text-[13px] font-medium text-white/70">
+        {first && <ChevronUpIcon className="size-4 shrink-0 animate-bounce stroke-[2.5]" />}
+        {first ? "উত্তর দিন, তারপর সোয়াইপ করুন" : "একটি উত্তর বেছে নিন"}
+      </p>
+    );
+  }
+  const right = selected === correctAnswer;
+  return (
+    <p className={`inline-flex min-w-0 animate-fade-in items-center gap-1.5 text-[15px] font-bold ${right ? "text-emerald-300" : "text-red-300"}`}>
+      {right ? <CheckIcon className="size-4.5 shrink-0 stroke-3" /> : <XIcon className="size-4.5 shrink-0 stroke-3" />}
+      {right ? "সঠিক উত্তর!" : "ভুল উত্তর"}
+    </p>
   );
 }
 
@@ -426,7 +425,7 @@ function ReelsTopBar({
         <AppLink
           href="/reels"
           aria-label="রিলস তালিকায় ফিরে যান"
-          className="pressable pointer-events-auto -ml-1.5 grid size-10 shrink-0 place-items-center rounded-full bg-black/25 backdrop-blur-md"
+          className="pressable pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full bg-black/25 backdrop-blur-md"
         >
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
         </AppLink>
@@ -451,7 +450,8 @@ function ReelsTopBar({
   );
 }
 
-// The column of round buttons on the right, as in short-video apps. Up/down steppers appear only where there is a mouse.
+// Phones: a centred capsule above the home indicator. From md up the card has room beside it, so the
+// actions become a column on the right, as in short-video apps, with up/down steppers for the mouse.
 function ActionRail({
   mode,
   canReset,
@@ -474,23 +474,25 @@ function ActionRail({
   onNext: () => void;
 }) {
   return (
-    <div className="fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 flex flex-col items-center gap-4 text-white md:right-[max(1.5rem,env(safe-area-inset-right))] md:bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <RailButton label={mode === "practice" ? "অনুশীলন" : "পড়া"} ariaLabel={mode === "practice" ? "পড়ার মোডে যান" : "অনুশীলন মোডে যান"} onClick={onToggleMode}>
-        {mode === "practice" ? <TargetIcon className="size-6" /> : <BookOpenIcon className="size-6" />}
-      </RailButton>
-      <RailButton label="শেয়ার" ariaLabel="শেয়ার করুন" onClick={onShare}>
-        <ShareIcon className="size-6" />
-      </RailButton>
-      <RailButton label="আবার" ariaLabel="আবার শুরু করুন" onClick={onReset} disabled={!canReset && atStart}>
-        <ResetIcon className="size-6" />
-      </RailButton>
-      <div className="hidden flex-col gap-3 md:flex">
-        <RailButton ariaLabel="আগের প্রশ্ন" onClick={onPrev} disabled={atStart}>
-          <ChevronUpIcon className="size-6 stroke-[2.5]" />
+    <div className="pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center text-white md:inset-x-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full bg-black/35 p-1.5 ring-1 ring-white/15 backdrop-blur-md md:flex md:flex-col md:gap-4 md:rounded-none md:bg-transparent md:p-0 md:ring-0 md:backdrop-blur-none">
+        <RailButton label={mode === "practice" ? "অনুশীলন" : "পড়া"} ariaLabel={mode === "practice" ? "পড়ার মোডে যান" : "অনুশীলন মোডে যান"} onClick={onToggleMode}>
+          {mode === "practice" ? <TargetIcon className="size-5 md:size-6" /> : <BookOpenIcon className="size-5 md:size-6" />}
         </RailButton>
-        <RailButton ariaLabel="পরের প্রশ্ন" onClick={onNext} disabled={atEnd}>
-          <ChevronDownIcon className="size-6 stroke-[2.5]" />
+        <RailButton label="শেয়ার" ariaLabel="শেয়ার করুন" onClick={onShare}>
+          <ShareIcon className="size-5 md:size-6" />
         </RailButton>
+        <RailButton label="আবার" ariaLabel="আবার শুরু করুন" onClick={onReset} disabled={!canReset && atStart}>
+          <ResetIcon className="size-5 md:size-6" />
+        </RailButton>
+        <div className="hidden flex-col gap-3 md:flex">
+          <RailButton ariaLabel="আগের প্রশ্ন" onClick={onPrev} disabled={atStart}>
+            <ChevronUpIcon className="size-6 stroke-[2.5]" />
+          </RailButton>
+          <RailButton ariaLabel="পরের প্রশ্ন" onClick={onNext} disabled={atEnd}>
+            <ChevronDownIcon className="size-6 stroke-[2.5]" />
+          </RailButton>
+        </div>
       </div>
     </div>
   );
@@ -515,10 +517,10 @@ function RailButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="pressable flex flex-col items-center gap-1 disabled:opacity-40"
+      className="pressable flex h-11 min-w-22 items-center justify-center gap-1.5 rounded-full px-3 disabled:opacity-40 md:h-auto md:min-w-0 md:flex-col md:gap-1 md:px-0"
     >
-      <span className="grid size-12 place-items-center rounded-full bg-black/30 ring-1 ring-white/15 backdrop-blur-md">{children}</span>
-      {label && <span className="text-[11px] font-semibold drop-shadow">{label}</span>}
+      <span className="grid place-items-center md:size-12 md:rounded-full md:bg-black/30 md:ring-1 md:ring-white/15 md:backdrop-blur-md">{children}</span>
+      {label && <span className="text-[13px] font-semibold md:text-[11px] md:drop-shadow">{label}</span>}
     </button>
   );
 }
@@ -646,10 +648,10 @@ export function ReelsSkeleton() {
       aria-busy="true"
       aria-label="লোড হচ্ছে"
     >
-      <div className="mx-auto w-full max-w-xl animate-pulse">
-        <div className="flex gap-1.5">
+      <div className="mx-auto w-full max-w-xl animate-pulse rounded-3xl bg-black/25 p-4 ring-1 ring-white/15 sm:p-6">
+        <div className="flex justify-between">
           <div className="h-6 w-20 rounded-full bg-white/20" />
-          <div className="h-6 w-16 rounded-full bg-white/15" />
+          <div className="h-4 w-24 rounded-full bg-white/15" />
         </div>
         <div className="mt-4 h-6 w-full rounded-lg bg-white/20" />
         <div className="mt-2 h-6 w-2/3 rounded-lg bg-white/20" />
@@ -657,6 +659,10 @@ export function ReelsSkeleton() {
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="h-13 rounded-2xl bg-white/15" />
           ))}
+        </div>
+        <div className="mt-5 flex justify-between border-t border-white/15 pt-4">
+          <div className="h-4 w-28 rounded-full bg-white/15" />
+          <div className="h-9 w-24 rounded-full bg-white/20" />
         </div>
       </div>
     </main>
