@@ -7,9 +7,10 @@ import { type Answers, defaultModeSetting, loadAnswers, saveAnswers, touchRecent
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
-import { ChevronLeftIcon, ExternalLinkIcon, GridIcon, ResetIcon } from "./icons";
+import { CheckIcon, ChevronLeftIcon, ChevronUpIcon, ExternalLinkIcon, ResetIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { type Mode, QuestionCard } from "./QuestionCard";
+import { Ring } from "./Ring";
 import { Sheet } from "./Sheet";
 import { ErrorState, Skeleton } from "./StatusViews";
 
@@ -57,7 +58,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   const [subject, setSubject] = useState(ALL);
   // Only rendered on the client after the fetch resolves, so reading localStorage here is safe.
   const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
-  const [navigatorOpen, setNavigatorOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => saveAnswers(slug, answers), [slug, answers]);
   useEffect(() => touchRecentExam(slug), [slug]);
@@ -82,8 +83,14 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
     }
   };
 
+  const chooseSubject = (name: string) => {
+    setSubject(name);
+    setDetailsOpen(false);
+    document.getElementById("questions")?.scrollIntoView({ block: "start" });
+  };
+
   const jumpTo = (questionNo: number) => {
-    setNavigatorOpen(false);
+    setDetailsOpen(false);
     document.getElementById(`q-${questionNo}`)?.scrollIntoView({ block: "start" });
   };
 
@@ -100,7 +107,8 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
           <div className="min-w-0">
             <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
 
-            <div className="mt-6 flex items-end justify-between gap-4 border-b border-separator">
+            {/* Desktop only; on phones the mode switch and subject choice are in the bottom bar. */}
+            <div className="mt-6 hidden items-end justify-between gap-4 border-b border-separator lg:flex">
               <ModeTabs mode={mode} onChange={setMode} />
               <p className="hidden pb-2.5 text-[13px] text-secondary sm:block">
                 {mode === "practice" ? "Choose an option to check your answer" : "Showing all answers and explanations"}
@@ -108,7 +116,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             </div>
 
             {subjects.length > 1 && (
-              <div className="no-scrollbar -mx-3 mt-4 flex gap-1 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
+              <div className="mt-4 hidden flex-wrap gap-1 lg:flex">
                 <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="All subjects" count={questions.length} />
                 {subjects.map(([name, count]) => (
                   <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />
@@ -116,7 +124,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
               </div>
             )}
 
-            <div className="mt-2 divide-y divide-separator">
+            <div id="questions" className="mt-2 scroll-mt-[max(1rem,env(safe-area-inset-top))] divide-y divide-separator">
               {visible.map((q) => (
                 <QuestionCard
                   key={q.question_no}
@@ -143,11 +151,46 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
         </div>
       </main>
 
-      <BottomToolbar mode={mode} progress={progress} onOpenNavigator={() => setNavigatorOpen(true)} onReset={reset} />
+      <BottomBar
+        mode={mode}
+        subjectLabel={subject === ALL ? "All subjects" : subject}
+        progress={progress}
+        onOpenDetails={() => setDetailsOpen(true)}
+      />
 
-      {navigatorOpen && (
-        <Sheet title="Go to question" onClose={() => setNavigatorOpen(false)}>
-          <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="grid-cols-6 sm:grid-cols-10" />
+      {/* Phones: the same details as the desktop sidebar, one tap away. */}
+      {detailsOpen && (
+        <Sheet title="Details" onClose={() => setDetailsOpen(false)}>
+          <div className="mb-6 border-b border-separator pb-5">
+            <h2 className="text-[13px] font-semibold text-secondary">Mode</h2>
+            <ModeSwitch mode={mode} onChange={setMode} className="mt-2 w-full" />
+            <p className="mt-2 text-[13px] text-secondary">
+              {mode === "practice" ? "Choose an option to check your answer." : "All answers and explanations are shown."}
+            </p>
+          </div>
+          {subjects.length > 1 && (
+            <div className="mb-6 border-b border-separator pb-5">
+              <h2 className="text-[13px] font-semibold text-secondary">Subject</h2>
+              <div role="radiogroup" aria-label="Subject" className="mt-1 divide-y divide-separator">
+                <SubjectOption active={subject === ALL} onClick={() => chooseSubject(ALL)} label="All subjects" count={questions.length} />
+                {subjects.map(([name, count]) => (
+                  <SubjectOption key={name} active={subject === name} onClick={() => chooseSubject(name)} label={name} count={count} />
+                ))}
+              </div>
+            </div>
+          )}
+          <ProgressCard
+            mode={mode}
+            progress={progress}
+            onReset={() => {
+              setDetailsOpen(false);
+              reset();
+            }}
+          />
+          <div className="mt-6 border-t border-separator pt-5">
+            <h2 className="text-[13px] font-semibold text-secondary">Go to question</h2>
+            <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-7 sm:grid-cols-10" />
+          </div>
         </Sheet>
       )}
     </>
@@ -249,6 +292,22 @@ function SubjectChip({ active, onClick, label, count }: { active: boolean; onCli
   );
 }
 
+function SubjectOption({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onClick}
+      className="pressable flex min-h-12 w-full items-center gap-3 py-2.5 text-left text-[16px]"
+    >
+      <span className={`min-w-0 flex-1 truncate ${active ? "font-semibold text-label" : "text-label"}`}>{label}</span>
+      <span className="text-[13px] text-tertiary tabular-nums">{formatNumber(count)}</span>
+      <span className="grid size-5 shrink-0 place-items-center text-tint">{active && <CheckIcon className="size-4.5 stroke-[2.5]" />}</span>
+    </button>
+  );
+}
+
 function ProgressBar({ progress }: { progress: Progress }) {
   const pct = (n: number) => (progress.total ? (n / progress.total) * 100 : 0);
   return (
@@ -342,66 +401,72 @@ function QuestionNavigator({
   );
 }
 
-// UIToolbar: pinned above the home indicator, translucent, with plain tint-coloured glyph buttons.
-// It also carries the back button, since the page has no top bar.
-function BottomToolbar({
+// Phones only: a floating capsule above the home indicator, like the tab bar on the other pages. It holds
+// the back button and a summary of the current view (subject and mode); tapping the summary opens the
+// details sheet (mode, subject, progress, question list).
+function BottomBar({
   mode,
+  subjectLabel,
   progress,
-  onOpenNavigator,
-  onReset,
+  onOpenDetails,
 }: {
   mode: Mode;
+  subjectLabel: string;
   progress: Progress;
-  onOpenNavigator: () => void;
-  onReset: () => void;
+  onOpenDetails: () => void;
 }) {
   return (
-    <div className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-20 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
-      <div className="mx-auto flex max-w-3xl items-center gap-1">
-        <AppLink href="/" aria-label="Back to all exams" className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint">
-          <ChevronLeftIcon className="size-7 stroke-[2.5]" />
+    <div className="px-safe pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center lg:hidden">
+      <div className="ios-material pointer-events-auto flex w-full max-w-sm items-center gap-1 rounded-full p-1.5 shadow-[0_8px_32px_rgb(0_0_0/0.14),0_2px_6px_rgb(0_0_0/0.06)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.6)] dark:ring-white/10">
+        <AppLink href="/" aria-label="Back to all exams" className="pressable grid size-11 shrink-0 place-items-center rounded-full bg-fill text-tint">
+          <ChevronLeftIcon className="size-6 stroke-[2.5]" />
         </AppLink>
-        <div className="min-w-0 flex-1 px-1">
-          {mode === "practice" ? (
-            <>
-              <div className="flex items-center justify-between gap-2 text-[13px]">
-                <span className="font-semibold">
-                  Answered {formatNumber(progress.answered)}/{formatNumber(progress.total)}
-                </span>
-                <span className="text-secondary">
-                  <span className="text-ios-green">Correct {formatNumber(progress.correct)}</span>
-                  {" · "}
-                  <span className="text-ios-red">Wrong {formatNumber(progress.wrong)}</span>
-                </span>
-              </div>
-              <div className="mt-1.5">
-                <ProgressBar progress={progress} />
-              </div>
-            </>
-          ) : (
-            <p className="text-center text-[13px] font-medium text-secondary">Study mode · {pluralize(progress.total, "question")}</p>
-          )}
-        </div>
-        {mode === "practice" && (
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={progress.answered === 0}
-            aria-label="Start over"
-            className="pressable grid size-11 shrink-0 place-items-center text-tint disabled:text-tertiary"
-          >
-            <ResetIcon className="size-5.5" />
-          </button>
-        )}
+
         <button
           type="button"
-          onClick={onOpenNavigator}
-          aria-label="Open question list"
-          className="pressable -mr-2 grid size-11 shrink-0 place-items-center text-tint"
+          onClick={onOpenDetails}
+          aria-haspopup="dialog"
+          aria-label={`${subjectLabel}, ${mode === "practice" ? "Practice" : "Study"} mode. Show mode, subjects, progress and question list`}
+          className="pressable flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full pr-3 pl-2 text-left"
         >
-          <GridIcon className="size-5.5" />
+          {mode === "practice" && <Ring value={progress.answered} total={progress.total} size={24} stroke={3.5} />}
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
+            {subjectLabel}
+            <span className="font-medium text-secondary"> · {mode === "practice" ? "Practice" : "Study"}</span>
+          </span>
+          <ChevronUpIcon className="size-4 shrink-0 stroke-[2.5] text-tertiary" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// Segmented control for the details sheet: a sliding thumb under the selected mode.
+function ModeSwitch({ mode, onChange, className = "" }: { mode: Mode; onChange: (mode: Mode) => void; className?: string }) {
+  const options: { value: Mode; label: string }[] = [
+    { value: "practice", label: "Practice" },
+    { value: "study", label: "Study" },
+  ];
+
+  return (
+    <div role="radiogroup" aria-label="Mode" className={`relative grid grid-cols-2 rounded-full bg-fill p-0.5 ${className}`}>
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-surface shadow-[0_2px_6px_rgb(0_0_0/0.12)] transition-transform duration-300 ease-out motion-reduce:transition-none dark:bg-fill-strong"
+        style={{ transform: mode === "study" ? "translateX(100%)" : "none" }}
+      />
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={mode === o.value}
+          onClick={() => onChange(o.value)}
+          className={`relative h-10 px-3 text-[15px] transition-colors ${mode === o.value ? "font-semibold text-label" : "font-medium text-secondary"}`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

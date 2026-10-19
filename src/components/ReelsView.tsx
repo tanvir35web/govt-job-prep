@@ -161,17 +161,28 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const answered = questions.filter((q) => answers[q.question_no] !== undefined).length;
   const correct = questions.filter((q) => answers[q.question_no] === q.correct_answer).length;
   const onSummary = current >= questions.length;
-  const covers = useMemo(() => [...new Set([...questions.map((q) => coverFor(q.subject)), coverFor(info.organization)])], [questions, info.organization]);
   const activeName = onSummary ? info.organization : questions[current].subject;
-  const activeCover = coverFor(activeName);
 
-  // Colour the status bar / browser bar like the top edge of the background, so the two read as one surface.
+  // The feed's background is the page's own background: the theme colour tinted with the current
+  // subject's hue. Being the body background, the browser paints it edge to edge, under its translucent
+  // bars and in the overscroll area, the same way every other page fills the screen. (A fixed layer
+  // behind the slides could not reach those areas, so the plain theme colour showed through there.)
+  // The status bar / browser bar gets the same colour so the two read as one surface.
   useEffect(() => {
     const dark = document.documentElement.dataset.theme === "dark";
     const color = blend(coverFromHex(activeName), dark ? THEME_COLORS.dark : THEME_COLORS.light, dark ? WASH_DARK : WASH_LIGHT);
+    document.body.style.backgroundColor = color;
     for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = color;
   }, [activeName]);
-  useEffect(() => () => applyTheme(themeSetting.get()), []);
+  useEffect(() => {
+    const body = document.body;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) body.style.transition = "background-color 0.5s ease";
+    return () => {
+      body.style.backgroundColor = "";
+      body.style.transition = "";
+      applyTheme(themeSetting.get());
+    };
+  }, []);
   // Fullscreen belongs to the feed; leaving it (back button, another page) gives the browser its bars back.
   // The exit waits a tick and is cancelled by a remount, so React's dev-mode double mount doesn't undo it.
   useEffect(() => {
@@ -215,8 +226,6 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   return (
     <>
       <title>{`${info.exam_title} · Reels | Govt Job Prep`}</title>
-
-      <FeedBackground covers={covers} active={activeCover} />
 
       <main className="text-label" aria-label="Question reels">
         {questions.map((q, i) => (
@@ -285,30 +294,9 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   );
 }
 
-// The feed's background: the theme colour with a faint wash of the current subject's gradient. It is
-// fixed to the screen rather than drawn per slide, so while the browser bars resize the viewport (and a
-// slide sits a few pixels off) the strip under the top bar never shows the previous slide's colour.
-// It overhangs the screen by 20vh at both ends, so no gap opens while the bars slide in or out or the
-// page rubber-bands. The gradient runs top to bottom and is flat over the top 15%, so the visible top
-// edge is one plain colour, which the theme-color effect above copies into the browser bar.
-// Each subject's wash is stacked once and cross-fades in when its question comes up.
+// How strongly the subject's hue tints the background, over the light and dark theme colours.
 const WASH_LIGHT = 0.15;
 const WASH_DARK = 0.25;
-
-function FeedBackground({ covers, active }: { covers: string[]; active: string }) {
-  return (
-    <div aria-hidden="true" className="fixed inset-x-0 -top-[20vh] -bottom-[20vh] -z-10 bg-canvas">
-      {covers.map((cover) => (
-        <span
-          key={cover}
-          className={`absolute inset-0 bg-linear-to-b from-15% transition-opacity duration-500 motion-reduce:transition-none ${cover} ${
-            cover === active ? "opacity-15 dark:opacity-25" : "opacity-0"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** Mixes a hex colour over a background hex at the given opacity, as the wash does on screen. */
 function blend(color: string, background: string, alpha: number) {
