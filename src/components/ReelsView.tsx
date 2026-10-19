@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
-import { type Answers, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveReelsPosition } from "@/lib/settings";
+import { type Answers, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
@@ -71,6 +71,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const slideCount = questions.length + 1;
 
   useEffect(() => saveAnswers(slug, answers), [slug, answers]);
+  useEffect(() => saveLastReel(slug), [slug]);
   useEffect(() => saveReelsPosition(slug, Math.min(current, questions.length - 1)), [slug, current, questions.length]);
 
   // Reopen on the question that was showing last time. Runs once; later changes come from scrolling.

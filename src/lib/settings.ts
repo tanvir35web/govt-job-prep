@@ -76,6 +76,9 @@ export const defaultModeSetting = setting<Mode>("default-mode", ["practice", "st
 
 const ANSWERS_PREFIX = "exam-answers:";
 const REELS_POSITION_PREFIX = "reels-position:";
+const LAST_REEL_KEY = "reels-last";
+const RECENT_EXAMS_KEY = "exams-recent";
+const RECENT_LIMIT = 10;
 
 /** Chosen option per question number. Shared by the exam page and Reels, so progress carries over. */
 export type Answers = Record<number, string>;
@@ -111,12 +114,45 @@ export function saveReelsPosition(slug: string, index: number) {
   }
 }
 
+/** Slug of the exam last opened in Reels, offered as "continue" on the Reels tab. */
+export function loadLastReel(): string | null {
+  return read(LAST_REEL_KEY);
+}
+
+export function saveLastReel(slug: string) {
+  try {
+    localStorage.setItem(LAST_REEL_KEY, slug);
+  } catch {
+    // Not persisted; the Reels tab just won't offer to continue.
+  }
+}
+
+/** Slugs of exams opened on the exam page, most recent first. Orders "continue" on Home. */
+export function loadRecentExams(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(read(RECENT_EXAMS_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function touchRecentExam(slug: string) {
+  try {
+    const next = [slug, ...loadRecentExams().filter((s) => s !== slug)].slice(0, RECENT_LIMIT);
+    localStorage.setItem(RECENT_EXAMS_KEY, JSON.stringify(next));
+  } catch {
+    // Not persisted; Home just orders "continue" by exam date.
+  }
+}
+
 /** Removes saved answers (and Reels positions) for every exam. Returns how many exams had progress. */
 export function clearAllAnswers(): number {
   try {
     const all = Object.keys(localStorage);
     const keys = all.filter((k) => k.startsWith(ANSWERS_PREFIX));
-    for (const k of [...keys, ...all.filter((k) => k.startsWith(REELS_POSITION_PREFIX))]) localStorage.removeItem(k);
+    const reels = all.filter((k) => k.startsWith(REELS_POSITION_PREFIX) || k === LAST_REEL_KEY || k === RECENT_EXAMS_KEY);
+    for (const k of [...keys, ...reels]) localStorage.removeItem(k);
     return keys.length;
   } catch {
     return 0;

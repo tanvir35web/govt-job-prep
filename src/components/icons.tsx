@@ -197,6 +197,13 @@ export const HomeIcon = (p: IconProps) => (
   </Icon>
 );
 
+// Filled triangle; pass a fill colour class (e.g. fill-current) with it.
+export const PlayIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 4.5v15l12.5-7.5z" />
+  </Icon>
+);
+
 export const ReelsIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="3" width="18" height="18" rx="4" />

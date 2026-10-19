@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
-import { type Answers, defaultModeSetting, loadAnswers, saveAnswers } from "@/lib/settings";
+import { type Answers, defaultModeSetting, loadAnswers, saveAnswers, touchRecentExam } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
@@ -59,6 +59,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   const [navigatorOpen, setNavigatorOpen] = useState(false);
 
   useEffect(() => saveAnswers(slug, answers), [slug, answers]);
+  useEffect(() => touchRecentExam(slug), [slug]);
 
   const subjects = useMemo(() => {
     const counts = new Map<string, number>();
