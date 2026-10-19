@@ -19,6 +19,15 @@ function Icon({ className = "size-5", children }: IconProps & { children: ReactN
   );
 }
 
+// An exam paper: a sheet with a folded corner and a tick.
+export const ExamPaperIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+    <path d="m9 15 2 2 4-4" />
+  </Icon>
+);
+
 export const GraduationCapIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M22 10 12 5 2 10l10 5 10-5z" />

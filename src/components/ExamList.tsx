@@ -9,7 +9,7 @@ import { loadAnswers, loadRecentExams } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
-import { CheckIcon, ChevronRightIcon, CircleCheckIcon, SearchIcon, XIcon } from "./icons";
+import { CheckIcon, ChevronRightIcon, CircleCheckIcon, ExamPaperIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { Ring } from "./Ring";
 import { ErrorState, Skeleton } from "./StatusViews";
@@ -287,14 +287,19 @@ function ExamGroup({ exams, rowProps }: { exams: ExamListItem[]; rowProps: (exam
 
 function ExamRow({ exam, progress, saved, unavailable, last }: RowProps & { last: boolean }) {
   const info = exam.exam_info;
+  const tone = softToneFor(info.organization);
   const answered = progress?.answered ?? 0;
   const done = info.total_questions > 0 && answered >= info.total_questions;
 
   return (
     <AppLink
       href={`/exams/${exam.slug}`}
-      className={`flex items-center pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
+      className={`flex items-center gap-3 pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
     >
+      {/* The same exam-paper glyph on every row; the tile's tint still tells organisations apart. */}
+      <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-xl ${tone.wash} ${tone.accent}`}>
+        <ExamPaperIcon className="size-5.5" />
+      </span>
       <div className={`flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 ${last ? "" : "hairline-b"}`}>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[16px] leading-snug font-semibold">{info.exam_title}</p>
@@ -465,7 +470,8 @@ function HomeSkeleton() {
             {Array.from({ length: rows }, (_, i) => {
               const n = group * 4 + i;
               return (
-                <div key={i} className="flex items-center pl-4">
+                <div key={i} className="flex items-center gap-3 pl-4">
+                  <Skeleton className="size-11 shrink-0 rounded-xl" />
                   <div className={`flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-4 ${i < rows - 1 ? "hairline-b" : ""}`}>
                     <div className="min-w-0 flex-1">
                       <Skeleton className={`h-4 ${ROW_TITLES[n % ROW_TITLES.length]}`} />
