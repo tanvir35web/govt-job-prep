@@ -108,7 +108,7 @@ export function ExamList() {
               {inProgress.length > 0 && (
                 <section className="mt-7" aria-label="Continue">
                   <SectionHeader title="Continue" />
-                  <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1">
+                  <ul className="no-scrollbar -mx-3 flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto px-3 pb-1">
                     {inProgress.map((exam) => (
                       <li key={exam.slug} className="w-[78%] max-w-xs shrink-0 snap-start">
                         <ContinueCard {...rowProps(exam)} />
@@ -121,7 +121,7 @@ export function ExamList() {
           )}
 
           {organizations.length > 1 && (
-            <div className="no-scrollbar -mx-4 mt-7 flex gap-2 overflow-x-auto px-4">
+            <div className="no-scrollbar -mx-3 mt-7 flex gap-2 overflow-x-auto px-3">
               <FilterChip active={organization === ALL} onClick={() => setOrganization(ALL)}>
                 All
               </FilterChip>
@@ -275,7 +275,7 @@ function ContinueCard({ exam, progress, unavailable }: RowProps) {
 
 function ExamGroup({ exams, rowProps }: { exams: ExamListItem[]; rowProps: (exam: ExamListItem) => RowProps }) {
   return (
-    <ul className="overflow-hidden rounded-2xl bg-surface/60 ring-[0.5px] ring-black/5 dark:ring-white/10">
+    <ul>
       {exams.map((exam, i) => (
         <li key={exam.slug}>
           <ExamRow {...rowProps(exam)} last={i === exams.length - 1} />
@@ -294,13 +294,13 @@ function ExamRow({ exam, progress, saved, unavailable, last }: RowProps & { last
   return (
     <AppLink
       href={`/exams/${exam.slug}`}
-      className={`flex items-center gap-3 pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
+      className={`-ml-2 flex items-center gap-3 rounded-xl pl-2 transition-colors active:bg-fill ${unavailable ? "opacity-40" : ""}`}
     >
       {/* The same exam-paper glyph on every row; the tile's tint still tells organisations apart. */}
       <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-xl ${tone.wash} ${tone.accent}`}>
         <ExamPaperIcon className="size-5.5" />
       </span>
-      <div className={`flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 ${last ? "" : "hairline-b"}`}>
+      <div className={`flex min-w-0 flex-1 items-center gap-3 py-3 ${last ? "" : "hairline-b"}`}>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[16px] leading-snug font-semibold">{info.exam_title}</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-secondary">
@@ -435,7 +435,7 @@ function HomeSkeleton() {
       {showContinue && (
         <div className="mt-7">
           <Skeleton className="mb-3 ml-1 h-5 w-24" />
-          <div className="-mx-4 flex gap-3 overflow-hidden px-4 pb-1">
+          <div className="-mx-3 flex gap-3 overflow-hidden px-3 pb-1">
             {[0, 1].map((i) => (
               <div key={i} className="flex min-h-36 w-[78%] max-w-xs shrink-0 flex-col rounded-[20px] bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10">
                 <Skeleton className="h-3 w-24" />
@@ -454,7 +454,7 @@ function HomeSkeleton() {
         </div>
       )}
 
-      <div className="-mx-4 mt-7 flex gap-2 overflow-hidden px-4">
+      <div className="-mx-3 mt-7 flex gap-2 overflow-hidden px-3">
         {["w-12", "w-28", "w-36", "w-24", "w-32"].map((width, i) => (
           <Skeleton key={i} className={`h-8.5 shrink-0 rounded-full ${width}`} />
         ))}
@@ -466,13 +466,13 @@ function HomeSkeleton() {
             <Skeleton className={`h-5 ${group === 0 ? "w-36" : "w-32"}`} />
             <Skeleton className="h-3.5 w-14" />
           </div>
-          <div className="overflow-hidden rounded-2xl bg-surface/60 ring-[0.5px] ring-black/5 dark:ring-white/10">
+          <div>
             {Array.from({ length: rows }, (_, i) => {
               const n = group * 4 + i;
               return (
-                <div key={i} className="flex items-center gap-3 pl-4">
+                <div key={i} className="flex items-center gap-3">
                   <Skeleton className="size-11 shrink-0 rounded-xl" />
-                  <div className={`flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-4 ${i < rows - 1 ? "hairline-b" : ""}`}>
+                  <div className={`flex min-w-0 flex-1 items-center gap-3 py-3.5 ${i < rows - 1 ? "hairline-b" : ""}`}>
                     <div className="min-w-0 flex-1">
                       <Skeleton className={`h-4 ${ROW_TITLES[n % ROW_TITLES.length]}`} />
                       {n % 3 === 0 && <Skeleton className="mt-1.5 h-4 w-2/5" />}

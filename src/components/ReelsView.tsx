@@ -6,6 +6,7 @@ import { OPTION_LABELS, firstLetter, formatNumber, pluralize } from "@/lib/forma
 import { saveExamOffline } from "@/lib/offline";
 import { type Answers, applyTheme, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition, THEME_COLORS, themeSetting } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
+import { enterFullscreen, exitFullscreen, useFullscreenSupported, useIsFullscreen } from "@/lib/fullscreen";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import {
@@ -16,6 +17,8 @@ import {
   ChevronUpIcon,
   LightbulbIcon,
   ListIcon,
+  MaximizeIcon,
+  MinimizeIcon,
   ResetIcon,
   TargetIcon,
   XIcon,
@@ -69,6 +72,8 @@ export function ReelsView({ slug }: { slug: string }) {
 
   return <ReelsFeed slug={slug} info={state.data.exam_info} questions={state.data.questions} />;
 }
+
+let fullscreenExitTimer: ReturnType<typeof setTimeout> | undefined;
 
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
@@ -167,6 +172,14 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = color;
   }, [activeName]);
   useEffect(() => () => applyTheme(themeSetting.get()), []);
+  // Fullscreen belongs to the feed; leaving it (back button, another page) gives the browser its bars back.
+  // The exit waits a tick and is cancelled by a remount, so React's dev-mode double mount doesn't undo it.
+  useEffect(() => {
+    clearTimeout(fullscreenExitTimer);
+    return () => {
+      fullscreenExitTimer = setTimeout(exitFullscreen, 0);
+    };
+  }, []);
 
   const select = (questionNo: number, option: string) => setAnswers((prev) => ({ ...prev, [questionNo]: option }));
 
@@ -453,6 +466,23 @@ function ReelOption({
   );
 }
 
+// Shown only where the browser supports page fullscreen (not iPhone Safari).
+function FullscreenButton() {
+  const supported = useFullscreenSupported();
+  const fullscreen = useIsFullscreen();
+  if (!supported) return null;
+  return (
+    <button
+      type="button"
+      onClick={fullscreen ? exitFullscreen : enterFullscreen}
+      aria-label={fullscreen ? "Exit full screen" : "Full screen"}
+      className="pressable grid size-8 shrink-0 place-items-center rounded-full text-tint"
+    >
+      {fullscreen ? <MinimizeIcon className="size-4.5" /> : <MaximizeIcon className="size-4.5" />}
+    </button>
+  );
+}
+
 function ReelsTopBar({
   title,
   context,
@@ -501,6 +531,8 @@ function ReelsTopBar({
         <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-[12px] font-bold text-canvas tabular-nums">
           {formatNumber(position)}/{formatNumber(total)}
         </span>
+
+        <FullscreenButton />
 
         {/* Position in the feed, drawn as a hairline along the capsule's lower edge. */}
         <div

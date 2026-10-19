@@ -6,6 +6,7 @@ import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import { getSavedSlugs, useOnline } from "@/lib/offline";
 import { loadAnswers, loadLastReel, loadReelsPosition } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
+import { enterFullscreenOnTouch } from "@/lib/fullscreen";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { FilterChip, SearchField } from "./ExamList";
@@ -91,7 +92,7 @@ export function ReelsList() {
           )}
 
           {organizations.length > 1 && (
-            <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4">
+            <div className="no-scrollbar -mx-3 mt-5 flex gap-2 overflow-x-auto px-3">
               <FilterChip active={organization === ALL} onClick={() => setOrganization(ALL)}>
                 All
               </FilterChip>
@@ -162,6 +163,7 @@ function ContinueCard({ exam, progress, unavailable }: { exam: ExamListItem; pro
   return (
     <AppLink
       href={`/reels/${exam.slug}`}
+      onClick={enterFullscreenOnTouch}
       className={`mt-5 flex items-center gap-3.5 rounded-[20px] p-4 transition-transform active:scale-[0.98] ${tone.card} ${unavailable ? "opacity-40" : ""}`}
     >
       <PlayBadge tone={tone} size="size-12" />
@@ -189,6 +191,7 @@ function ReelCover({ exam, progress, saved, unavailable }: { exam: ExamListItem;
   return (
     <AppLink
       href={`/reels/${exam.slug}`}
+      onClick={enterFullscreenOnTouch}
       aria-label={`${info.exam_title}, ${pluralize(info.total_questions, "question")}${done ? ", done" : ""}`}
       className={`flex aspect-[4/5] flex-col rounded-[20px] p-3.5 transition-transform active:scale-[0.97] ${tone.card} ${unavailable ? "opacity-40" : ""}`}
     >

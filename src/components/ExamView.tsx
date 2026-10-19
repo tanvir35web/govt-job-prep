@@ -108,7 +108,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             </div>
 
             {subjects.length > 1 && (
-              <div className="no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+              <div className="no-scrollbar -mx-3 mt-4 flex gap-1 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
                 <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="All subjects" count={questions.length} />
                 {subjects.map(([name, count]) => (
                   <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />

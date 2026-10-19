@@ -15,7 +15,7 @@ export default function AdminPage() {
   return (
     <Suspense
       fallback={
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-6xl px-3 py-8 sm:px-6 lg:px-8">
           <Skeleton className="h-9 w-56" />
           <Skeleton className="mt-8 h-96 rounded-3xl" />
         </main>

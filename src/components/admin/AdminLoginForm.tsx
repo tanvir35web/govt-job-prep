@@ -46,7 +46,7 @@ export function AdminLoginForm() {
     "mt-1.5 h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-base outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 dark:border-stone-700 dark:bg-stone-950";
 
   return (
-    <main className="grid min-h-[calc(100vh-8rem)] place-items-center px-4 py-12">
+    <main className="grid min-h-[calc(100vh-8rem)] place-items-center px-3 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-lg shadow-emerald-900/20">
