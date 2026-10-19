@@ -21,7 +21,7 @@ export function QuestionCard({
   const twoColumns = q.options.every((o) => o.length <= 32);
 
   return (
-    <article id={`q-${q.question_no}`} className="scroll-mt-[calc(env(safe-area-inset-top)+3.5rem)] rounded-2xl bg-surface p-4 sm:p-5">
+    <article id={`q-${q.question_no}`} className="scroll-mt-[max(0.75rem,env(safe-area-inset-top))] rounded-2xl bg-surface p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
         <span className="font-semibold text-tint">প্রশ্ন {toBn(q.question_no)}</span>
         <span aria-hidden="true" className="text-tertiary">

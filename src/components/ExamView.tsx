@@ -5,15 +5,15 @@ import { formatExamDate, toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
-import { BookOpenIcon, BuildingIcon, CalendarIcon, ExternalLinkIcon, GridIcon, ResetIcon, TargetIcon } from "./icons";
-import { NavBar } from "./NavBar";
+import { AppLink } from "./AppLink";
+import { BookOpenIcon, BuildingIcon, CalendarIcon, ChevronLeftIcon, ExternalLinkIcon, GridIcon, ResetIcon, TargetIcon } from "./icons";
+import { OfflineBadge } from "./OfflineBadge";
 import { type Mode, QuestionCard } from "./QuestionCard";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 type Answers = Record<number, string>;
 
 const ALL = "__all__";
-const BACK = { href: "/", label: "পরীক্ষা" };
 const WIDTH = "max-w-3xl lg:max-w-6xl";
 
 export function ExamView({ slug }: { slug: string }) {
@@ -30,8 +30,7 @@ export function ExamView({ slug }: { slug: string }) {
   if (state.status === "error") {
     return (
       <>
-        <NavBar title="" back={BACK} />
-        <main className="px-safe flex-1">
+        <main className="px-safe flex-1 pt-[max(0.75rem,env(safe-area-inset-top))]">
           {state.code === 404 ? (
             <ErrorState title="পরীক্ষাটি পাওয়া যায়নি" message="লিংকটি সঠিক কিনা দেখুন, অথবা তালিকা থেকে পরীক্ষা বেছে নিন।" showHomeLink />
           ) : state.code === 0 ? (
@@ -109,9 +108,11 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   return (
     <>
       <title>{`${info.exam_title} | সরকারি চাকরি প্রস্তুতি`}</title>
-      <NavBar title={info.exam_title} back={BACK} width={WIDTH} />
-
-      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
+      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
+        {/* Phones go back from the bottom toolbar; wider screens have no toolbar, so they get this link. */}
+        <AppLink href="/" className="pressable mb-2 hidden items-center text-[17px] text-tint lg:inline-flex">
+          <ChevronLeftIcon className="-ml-2 size-7 stroke-[2.5]" /> সব পরীক্ষা
+        </AppLink>
         <ExamHeader info={info} available={questions.length} subjectCount={subjects.length} />
 
         <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8">
@@ -147,7 +148,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             )}
           </div>
 
-          <aside className="hidden lg:sticky lg:top-[calc(env(safe-area-inset-top)+3.75rem)] lg:block lg:space-y-4">
+          <aside className="hidden lg:sticky lg:top-[max(0.75rem,env(safe-area-inset-top))] lg:block lg:space-y-4">
             <ProgressCard mode={mode} progress={progress} onReset={reset} />
             <div className="rounded-2xl bg-surface p-4">
               <h2 className="text-[15px] font-semibold">প্রশ্নে যান</h2>
@@ -174,13 +175,16 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
   const hasSafeSource = /^https?:\/\//i.test(info.source_url);
 
   return (
-    <section className="mt-2 rounded-2xl bg-surface p-4 sm:p-5">
+    <section className="rounded-2xl bg-surface p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-700 text-white">
           <BuildingIcon className="size-6" />
         </span>
         <div className="min-w-0">
-          <p className="text-[13px] text-secondary">{info.organization}</p>
+          <p className="flex items-center gap-2 text-[13px] text-secondary">
+            <span className="min-w-0 truncate">{info.organization}</span>
+            <OfflineBadge className="shrink-0" />
+          </p>
           <h1 className="mt-0.5 text-[22px] leading-snug font-bold sm:text-[26px]">{info.exam_title}</h1>
         </div>
       </div>
@@ -374,6 +378,7 @@ function QuestionNavigator({
 }
 
 // UIToolbar: pinned above the home indicator, translucent, with plain tint-coloured glyph buttons.
+// It also carries the back button, since the page has no top bar.
 function BottomToolbar({
   mode,
   progress,
@@ -388,17 +393,9 @@ function BottomToolbar({
   return (
     <div className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-20 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-1">
-        {mode === "practice" && (
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={progress.answered === 0}
-            aria-label="আবার শুরু করুন"
-            className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint disabled:text-tertiary"
-          >
-            <ResetIcon className="size-[22px]" />
-          </button>
-        )}
+        <AppLink href="/" aria-label="সব পরীক্ষায় ফিরে যান" className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint">
+          <ChevronLeftIcon className="size-7 stroke-[2.5]" />
+        </AppLink>
         <div className="min-w-0 flex-1 px-1">
           {mode === "practice" ? (
             <>
@@ -420,13 +417,24 @@ function BottomToolbar({
             <p className="text-center text-[13px] font-medium text-secondary">পড়ার মোড · {toBn(progress.total)}টি প্রশ্ন</p>
           )}
         </div>
+        {mode === "practice" && (
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={progress.answered === 0}
+            aria-label="আবার শুরু করুন"
+            className="pressable grid size-11 shrink-0 place-items-center text-tint disabled:text-tertiary"
+          >
+            <ResetIcon className="size-5.5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenNavigator}
           aria-label="প্রশ্ন তালিকা খুলুন"
           className="pressable -mr-2 grid size-11 shrink-0 place-items-center text-tint"
         >
-          <GridIcon className="size-[22px]" />
+          <GridIcon className="size-5.5" />
         </button>
       </div>
     </div>
@@ -517,9 +525,8 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
 export function ExamSkeleton() {
   return (
     <>
-      <NavBar title="" back={BACK} width={WIDTH} />
-      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
-        <div className="mt-2 rounded-2xl bg-surface p-4">
+      <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
+        <div className="rounded-2xl bg-surface p-4">
           <div className="flex gap-3">
             <Skeleton className="size-12 shrink-0 rounded-xl" />
             <div className="flex-1">

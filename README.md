@@ -18,7 +18,7 @@ npm run dev
 | `/admin` | Admin panel (login at `/admin/login`). Paste or open exam JSON, check the preview, upload. Also lists and deletes exams. |
 | `/exams/{slug}` | Exam details (calls `GET /api/exams/{slug}`). Practice mode: answer and get instant feedback; progress is saved in the browser. Study mode: all answers and explanations shown. Subject filter and question navigator. |
 
-UI text is in Bengali, using the Hind Siliguri font. The public pages follow iOS design conventions (navigation bar with large title, inset grouped lists, segmented control, bottom toolbar, sheets, safe-area insets), with light and dark themes that follow the system setting. The admin panel keeps its own header.
+UI text is in Bengali, using the Hind Siliguri font. The public pages follow iOS design conventions with no top bar (large title, inset grouped lists, segmented control, bottom toolbar with the back button, sheets, safe-area insets), with light and dark themes that follow the system setting. The admin panel keeps its own header.
 
 ## PWA and offline
 

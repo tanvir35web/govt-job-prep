@@ -7,7 +7,7 @@ import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { BuildingIcon, ChevronRightIcon, CircleCheckIcon, CloudDownloadIcon, SearchIcon, XIcon } from "./icons";
-import { NavBar } from "./NavBar";
+import { OfflineBadge } from "./OfflineBadge";
 import { InstallHint } from "./pwa/InstallHint";
 import { SiteFooter } from "./SiteFooter";
 import { ErrorState, Skeleton } from "./StatusViews";
@@ -42,17 +42,19 @@ export function ExamList() {
 
   return (
     <>
-      <NavBar
-        title="পরীক্ষাসমূহ"
-        largeTitle
-        subtitle={
-          state.status === "success"
-            ? `${toBn(exams.length)}টি পরীক্ষা · ${toBn(totalQuestions)}টি প্রশ্ন ও সমাধান`
-            : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"
-        }
-      />
+      <main className="px-safe mx-auto w-full max-w-3xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
+        <header className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-[34px] leading-tight font-bold tracking-tight">পরীক্ষাসমূহ</h1>
+            <OfflineBadge />
+          </div>
+          <p className="mt-0.5 text-[15px] text-secondary">
+            {state.status === "success"
+              ? `${toBn(exams.length)}টি পরীক্ষা · ${toBn(totalQuestions)}টি প্রশ্ন ও সমাধান`
+              : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"}
+          </p>
+        </header>
 
-      <main className="px-safe mx-auto w-full max-w-3xl flex-1 pb-4">
         <SearchField value={query} onChange={setQuery} />
 
         <div className="mt-4 space-y-4">
