@@ -10,7 +10,7 @@ function examApiUrl(slug: string) {
   return `/api/exams/${encodeURIComponent(slug)}`;
 }
 
-/** Asks the service worker to store an exam's questions, page and assets. Resolves false if that is not possible. */
+/** Asks the service worker to store an exam's questions, its exam and Reels pages, and their assets. Resolves false if that is not possible. */
 export async function saveExamOffline(slug: string): Promise<boolean> {
   if (!("serviceWorker" in navigator)) return false;
   // On the very first visit the worker is still installing; give it a few seconds to activate.
@@ -52,7 +52,8 @@ export async function clearSavedExams(): Promise<void> {
     const keys = await cache.keys();
     await Promise.all(keys.filter((r) => new URL(r.url).pathname.startsWith(prefix)).map((r) => cache.delete(r)));
   };
-  await Promise.all([remove(api, "/api/exams/"), remove(pages, "/exams/")]);
+  // "/reels/" with the slash leaves the precached Reels tab ("/reels") in place.
+  await Promise.all([remove(api, "/api/exams/"), remove(pages, "/exams/"), remove(pages, "/reels/")]);
 }
 
 /** Bytes this site stores on the device (caches, localStorage etc.), or null where the browser does not say. */

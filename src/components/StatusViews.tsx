@@ -6,12 +6,16 @@ export function ErrorState({
   message,
   onRetry,
   showHomeLink = false,
+  homeHref = "/",
+  homeLabel = "সব পরীক্ষা",
   offline = false,
 }: {
   title: string;
   message: string;
   onRetry?: () => void;
   showHomeLink?: boolean;
+  homeHref?: string;
+  homeLabel?: string;
   offline?: boolean;
 }) {
   return (
@@ -33,10 +37,10 @@ export function ErrorState({
         )}
         {showHomeLink && (
           <AppLink
-            href="/"
+            href={homeHref}
             className="pressable inline-flex h-[50px] items-center justify-center rounded-[14px] bg-fill text-[17px] font-semibold text-tint"
           >
-            সব পরীক্ষা
+            {homeLabel}
           </AppLink>
         )}
       </div>

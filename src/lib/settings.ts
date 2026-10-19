@@ -75,16 +75,48 @@ export function applyTheme(theme: Theme) {
 export const defaultModeSetting = setting<Mode>("default-mode", ["practice", "study"] as const, "practice");
 
 const ANSWERS_PREFIX = "exam-answers:";
+const REELS_POSITION_PREFIX = "reels-position:";
 
-export function answersKey(slug: string) {
-  return `${ANSWERS_PREFIX}${slug}`;
+/** Chosen option per question number. Shared by the exam page and Reels, so progress carries over. */
+export type Answers = Record<number, string>;
+
+export function loadAnswers(slug: string): Answers {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(`${ANSWERS_PREFIX}${slug}`) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Answers) : {};
+  } catch {
+    return {};
+  }
 }
 
-/** Removes saved answers for every exam. Returns how many exams had progress. */
+export function saveAnswers(slug: string, answers: Answers) {
+  try {
+    localStorage.setItem(`${ANSWERS_PREFIX}${slug}`, JSON.stringify(answers));
+  } catch {
+    // Storage unavailable (private mode etc.); progress just won't persist.
+  }
+}
+
+/** Index of the question last shown in Reels, so the feed reopens where it was left. */
+export function loadReelsPosition(slug: string): number {
+  const value = Number(read(`${REELS_POSITION_PREFIX}${slug}`));
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+export function saveReelsPosition(slug: string, index: number) {
+  try {
+    localStorage.setItem(`${REELS_POSITION_PREFIX}${slug}`, String(index));
+  } catch {
+    // Not persisted; the feed starts from the first question next time.
+  }
+}
+
+/** Removes saved answers (and Reels positions) for every exam. Returns how many exams had progress. */
 export function clearAllAnswers(): number {
   try {
-    const keys = Object.keys(localStorage).filter((k) => k.startsWith(ANSWERS_PREFIX));
-    for (const k of keys) localStorage.removeItem(k);
+    const all = Object.keys(localStorage);
+    const keys = all.filter((k) => k.startsWith(ANSWERS_PREFIX));
+    for (const k of [...keys, ...all.filter((k) => k.startsWith(REELS_POSITION_PREFIX))]) localStorage.removeItem(k);
     return keys.length;
   } catch {
     return 0;

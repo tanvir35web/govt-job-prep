@@ -2,7 +2,7 @@
 //
 // Caches
 //   static-v1  hashed build assets (/_next/static), icons, fonts. Cache-first; never change once built.
-//   pages-v1   HTML documents ("/", "/exams/{slug}"). Network-first, cached copy when offline.
+//   pages-v1   HTML documents ("/", "/exams/{slug}", "/reels/{slug}"). Network-first, cached copy when offline.
 //   api-v1     /api/exams responses. Exam detail: stale-while-revalidate. Exam list: network-first.
 //
 // Bump a cache's version only when its format changes: a bump throws away saved questions.
@@ -76,7 +76,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Page asks for an exam to be saved (its API data, its HTML and the assets the HTML needs).
+// Page asks for an exam to be saved (its API data, its exam and Reels pages and the assets they need).
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || data.type !== "SAVE_EXAM" || typeof data.slug !== "string") return;
@@ -94,7 +94,7 @@ self.addEventListener("message", (event) => {
 async function saveExam(slug) {
   const encoded = encodeURIComponent(slug);
   const apiUrl = `/api/exams/${encoded}`;
-  const pageUrl = `/exams/${encoded}`;
+  const pageUrls = [`/exams/${encoded}`, `/reels/${encoded}`];
 
   const api = await caches.open(API_CACHE);
   if (!(await api.match(apiUrl))) {
@@ -104,7 +104,9 @@ async function saveExam(slug) {
   }
 
   const pages = await caches.open(PAGES_CACHE);
-  if (!(await pages.match(pageUrl))) await cacheDocument(pageUrl, pages);
+  for (const url of pageUrls) {
+    if (!(await pages.match(url))) await cacheDocument(url, pages);
+  }
 }
 
 // Fetches an HTML document, stores it, and stores the build assets it references so the page can boot offline.

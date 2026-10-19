@@ -9,12 +9,20 @@ import { AppLink } from "./AppLink";
 import { BuildingIcon, ChevronRightIcon, CircleCheckIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { PageTitle } from "./PageTitle";
-import { InstallHint } from "./pwa/InstallHint";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 const ALL = "__all__";
 
-export function ExamList() {
+// The exam picker. Home opens an exam as a scrolling page; Reels reuses it with basePath "/reels".
+export function ExamList({
+  title = "পরীক্ষাসমূহ",
+  intro = "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান",
+  basePath = "/exams",
+}: {
+  title?: string;
+  intro?: string;
+  basePath?: string;
+}) {
   const { state, retry } = useApi<ExamListResponse>("/api/exams?limit=100");
   const online = useOnline();
   const [query, setQuery] = useState("");
@@ -47,20 +55,16 @@ export function ExamList() {
     <>
       <main className="px-safe mx-auto w-full max-w-3xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
         <PageTitle
-          title="পরীক্ষাসমূহ"
+          title={title}
           trailing={<OfflineBadge />}
           subtitle={
             state.status === "success"
               ? `${toBn(exams.length)}টি পরীক্ষা · ${toBn(totalQuestions)}টি প্রশ্ন ও সমাধান`
-              : "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন ও সমাধান"
+              : intro
           }
         />
 
         <SearchField value={query} onChange={setQuery} />
-
-        <div className="mt-4 space-y-4">
-          <InstallHint />
-        </div>
 
         {state.status === "loading" && <ExamListSkeleton />}
 
@@ -107,6 +111,7 @@ export function ExamList() {
                   <li key={exam.slug}>
                     <ExamRow
                       exam={exam}
+                      href={`${basePath}/${exam.slug}`}
                       saved={saved.has(exam.slug)}
                       unavailable={!online && !saved.has(exam.slug)}
                       last={i === filtered.length - 1}
@@ -169,11 +174,23 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function ExamRow({ exam, saved, unavailable, last }: { exam: ExamListItem; saved: boolean; unavailable: boolean; last: boolean }) {
+function ExamRow({
+  exam,
+  href,
+  saved,
+  unavailable,
+  last,
+}: {
+  exam: ExamListItem;
+  href: string;
+  saved: boolean;
+  unavailable: boolean;
+  last: boolean;
+}) {
   const info = exam.exam_info;
   return (
     <AppLink
-      href={`/exams/${exam.slug}`}
+      href={href}
       className={`flex items-center gap-3 pl-4 transition-colors active:bg-fill-strong ${unavailable ? "opacity-40" : ""}`}
     >
       <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-linear-to-br from-emerald-500 to-teal-700 text-white">

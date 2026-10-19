@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatExamDate, toBn } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
-import { answersKey, defaultModeSetting } from "@/lib/settings";
+import { type Answers, defaultModeSetting, loadAnswers, saveAnswers } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
@@ -11,8 +11,6 @@ import { BookOpenIcon, BuildingIcon, CalendarIcon, ChevronLeftIcon, ExternalLink
 import { OfflineBadge } from "./OfflineBadge";
 import { type Mode, QuestionCard } from "./QuestionCard";
 import { ErrorState, Skeleton } from "./StatusViews";
-
-type Answers = Record<number, string>;
 
 const ALL = "__all__";
 const WIDTH = "max-w-3xl lg:max-w-6xl";
@@ -53,15 +51,6 @@ export function ExamView({ slug }: { slug: string }) {
   return <ExamContent slug={slug} info={state.data.exam_info} questions={state.data.questions} />;
 }
 
-function loadAnswers(slug: string): Answers {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(answersKey(slug)) ?? "{}");
-    return parsed && typeof parsed === "object" ? (parsed as Answers) : {};
-  } catch {
-    return {};
-  }
-}
-
 function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
   const [mode, setMode] = useState<Mode>(defaultModeSetting.get);
   const [subject, setSubject] = useState(ALL);
@@ -69,13 +58,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
   const [navigatorOpen, setNavigatorOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(answersKey(slug), JSON.stringify(answers));
-    } catch {
-      // Storage unavailable (private mode etc.); progress just won't persist.
-    }
-  }, [slug, answers]);
+  useEffect(() => saveAnswers(slug, answers), [slug, answers]);
 
   const subjects = useMemo(() => {
     const counts = new Map<string, number>();
