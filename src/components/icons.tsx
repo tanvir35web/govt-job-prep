@@ -245,3 +245,11 @@ export const DatabaseIcon = (p: IconProps) => (
     <path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0" />
   </Icon>
 );
+
+// Stopwatch, for timed exams.
+export const TimerIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2.5 2.5M10 2h4M12 2v3M19 6l1.5-1.5" />
+  </Icon>
+);

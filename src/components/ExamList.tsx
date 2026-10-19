@@ -11,6 +11,7 @@ import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { CheckIcon, ChevronRightIcon, CircleCheckIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
+import { Ring } from "./Ring";
 import { ErrorState, Skeleton } from "./StatusViews";
 
 const ALL = "__all__";
@@ -237,33 +238,6 @@ function SummaryStat({ label, value, divider = false }: { label: string; value: 
   );
 }
 
-// Activity-style progress ring: a fill-coloured track with a tint arc.
-function Ring({ value, total, size, stroke, children }: { value: number; total: number; size: number; stroke: number; children?: React.ReactNode }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = total ? Math.min(1, value / total) : 0;
-  return (
-    <span className="relative grid shrink-0 place-items-center text-tint" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-fill" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct)}
-          className="transition-[stroke-dashoffset] duration-700 ease-out"
-        />
-      </svg>
-      <span className="relative text-label">{children}</span>
-    </span>
-  );
-}
-
 // ---- Continue
 
 type RowProps = { exam: ExamListItem; progress?: Progress; saved: boolean; unavailable: boolean };
@@ -428,22 +402,92 @@ export function FilterChip({ active, onClick, children }: { active: boolean; onC
   );
 }
 
+// The loading view has the same shapes and spacing as the loaded page, so nothing jumps when the
+// list arrives. "Continue" is sketched only when this device has opened exams before.
+const hasRecentExams = () => loadRecentExams().length > 0;
+
+const ROW_TITLES = ["w-4/5", "w-3/5", "w-11/12", "w-2/3", "w-3/4", "w-1/2"];
+const ROW_DETAILS = ["w-1/2", "w-2/5", "w-1/3", "w-1/2", "w-2/5", "w-1/3"];
+
 function HomeSkeleton() {
+  const showContinue = useSyncExternalStore(noopSubscribe, hasRecentExams, () => false);
+
   return (
-    <div aria-busy="true" aria-label="Loading">
-      <Skeleton className="mt-5 h-43 rounded-2xl" />
-      <Skeleton className="mt-7 mb-2 ml-1 h-5 w-28" />
-      <div className="overflow-hidden rounded-2xl bg-surface/60">
-        {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className="flex items-center gap-3 pl-4">
-            <Skeleton className="size-11 shrink-0 rounded-xl" />
-            <div className={`flex-1 py-3.5 pr-4 ${i < 4 ? "hairline-b" : ""}`}>
-              <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="mt-2 h-3 w-1/2" />
-            </div>
+    <div aria-busy="true" aria-label="Loading" className="animate-fade-in">
+      <div className="mt-5 rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10">
+        <div className="flex items-center gap-4">
+          {/* Same size as the progress ring; the mask cuts out its centre. */}
+          <Skeleton className="size-19 shrink-0 rounded-full [mask:radial-gradient(farthest-side,transparent_calc(100%-8px),#000_calc(100%-8px))]" />
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-4.5 w-32" />
+            <Skeleton className="mt-2.5 h-3.5 w-full max-w-60" />
+            <Skeleton className="mt-1.5 h-3.5 w-2/3 max-w-40" />
           </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 rounded-xl bg-fill/60 py-2.5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`flex flex-col items-center gap-1.5 ${i > 0 ? "border-l-[0.5px] border-separator" : ""}`}>
+              <Skeleton className="h-5 w-7" />
+              <Skeleton className="h-3 w-14" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showContinue && (
+        <div className="mt-7">
+          <Skeleton className="mb-3 ml-1 h-5 w-24" />
+          <div className="-mx-4 flex gap-3 overflow-hidden px-4 pb-1">
+            {[0, 1].map((i) => (
+              <div key={i} className="flex min-h-36 w-[78%] max-w-xs shrink-0 flex-col rounded-[20px] bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2.5 h-4 w-full" />
+                <Skeleton className="mt-1.5 h-4 w-3/5" />
+                <div className="mt-auto pt-3">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                  <Skeleton className="mt-2 h-1.5 w-full rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="-mx-4 mt-7 flex gap-2 overflow-hidden px-4">
+        {["w-12", "w-28", "w-36", "w-24", "w-32"].map((width, i) => (
+          <Skeleton key={i} className={`h-8.5 shrink-0 rounded-full ${width}`} />
         ))}
       </div>
+
+      {[4, 2].map((rows, group) => (
+        <div key={group} className="mt-6">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <Skeleton className={`h-5 ${group === 0 ? "w-36" : "w-32"}`} />
+            <Skeleton className="h-3.5 w-14" />
+          </div>
+          <div className="overflow-hidden rounded-2xl bg-surface/60 ring-[0.5px] ring-black/5 dark:ring-white/10">
+            {Array.from({ length: rows }, (_, i) => {
+              const n = group * 4 + i;
+              return (
+                <div key={i} className="flex items-center gap-3 pl-4">
+                  <Skeleton className="size-11 shrink-0 rounded-xl" />
+                  <div className={`flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-4 ${i < rows - 1 ? "hairline-b" : ""}`}>
+                    <div className="min-w-0 flex-1">
+                      <Skeleton className={`h-4 ${ROW_TITLES[n % ROW_TITLES.length]}`} />
+                      {n % 3 === 0 && <Skeleton className="mt-1.5 h-4 w-2/5" />}
+                      <Skeleton className={`mt-2 h-3 ${ROW_DETAILS[n % ROW_DETAILS.length]}`} />
+                    </div>
+                    <Skeleton className="size-4 shrink-0 rounded" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

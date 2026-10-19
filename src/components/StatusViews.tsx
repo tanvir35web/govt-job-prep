@@ -49,5 +49,5 @@ export function ErrorState({
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-fill ${className}`} />;
+  return <div aria-hidden="true" className={`skeleton-shimmer rounded-lg ${className}`} />;
 }
