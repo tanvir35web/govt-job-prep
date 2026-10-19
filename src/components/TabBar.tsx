@@ -12,13 +12,14 @@ const TABS = [
 ] as const;
 
 // UITabBar: translucent, pinned above the home indicator. Tapping the current tab scrolls it to the top.
+// The bottom padding overlaps the home-indicator inset by 1rem so the icons sit lower, with more room above.
 export function TabBar() {
   const pathname = usePathname();
   const updateAvailable = useUpdateAvailable();
 
   return (
-    <nav aria-label="প্রধান মেনু" className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-30 pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid h-[49px] max-w-md grid-cols-3">
+    <nav aria-label="প্রধান মেনু" className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-30 pt-2 pb-[max(0.5rem,calc(env(safe-area-inset-bottom)-1rem))]">
+      <ul className="mx-auto grid h-12 max-w-md grid-cols-3">
         {TABS.map(({ href, label, Icon }) => {
           const active = pathname === href;
           const badge = href === "/settings" && updateAvailable;
