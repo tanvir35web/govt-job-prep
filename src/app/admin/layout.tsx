@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "অ্যাডমিন",
+  title: "Admin",
   robots: { index: false, follow: false },
 };
 

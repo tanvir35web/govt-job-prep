@@ -19,59 +19,59 @@ export function validateExamPayload(input: unknown): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!isObject(input)) return { ok: false, errors: ["JSON-টি একটি object হতে হবে ({ ... })।"] };
+  if (!isObject(input)) return { ok: false, errors: ["The JSON must be an object ({ ... })."] };
 
   const info = input.exam_info;
   if (!isObject(info)) {
-    errors.push("`exam_info` নেই বা সঠিক object নয়।");
+    errors.push("`exam_info` is missing or is not an object.");
   } else {
     for (const key of ["exam_title", "organization", "exam_type", "exam_date"] as const) {
-      if (!isNonEmptyString(info[key])) errors.push(`exam_info.${key} খালি বা text নয়।`);
+      if (!isNonEmptyString(info[key])) errors.push(`exam_info.${key} is empty or not text.`);
     }
     for (const key of ["total_marks", "total_questions"] as const) {
-      if (!isPositiveInt(info[key])) errors.push(`exam_info.${key} একটি ধনাত্মক পূর্ণসংখ্যা হতে হবে।`);
+      if (!isPositiveInt(info[key])) errors.push(`exam_info.${key} must be a positive integer.`);
     }
     if (info.source_url !== undefined && info.source_url !== "" && !/^https?:\/\/\S+$/i.test(String(info.source_url))) {
-      errors.push("exam_info.source_url একটি http/https লিংক হতে হবে।");
+      errors.push("exam_info.source_url must be an http/https link.");
     }
     if (isNonEmptyString(info.exam_date) && parseExamDate(info.exam_date) === null) {
-      warnings.push(`exam_info.exam_date "${info.exam_date}" তারিখ হিসেবে বোঝা যায়নি; তালিকায় সাজানোর সময় শেষে থাকবে।`);
+      warnings.push(`exam_info.exam_date "${info.exam_date}" could not be read as a date; it will be sorted to the end of the list.`);
     }
   }
 
   const questions = input.questions;
   if (!Array.isArray(questions) || questions.length === 0) {
-    errors.push("`questions` একটি খালি নয় এমন array হতে হবে।");
+    errors.push("`questions` must be a non-empty array.");
   } else {
     const seen = new Set<number>();
     questions.forEach((q, i) => {
       if (errors.length >= MAX_ERRORS) return;
       const at = `questions[${i}]`;
       if (!isObject(q)) {
-        errors.push(`${at} object নয়।`);
+        errors.push(`${at} is not an object.`);
         return;
       }
-      const label = isPositiveInt(q.question_no) ? `প্রশ্ন ${q.question_no}` : at;
-      if (!isPositiveInt(q.question_no)) errors.push(`${at}.question_no একটি ধনাত্মক পূর্ণসংখ্যা হতে হবে।`);
-      else if (seen.has(q.question_no)) errors.push(`${label}: question_no একাধিকবার আছে।`);
+      const label = isPositiveInt(q.question_no) ? `Question ${q.question_no}` : at;
+      if (!isPositiveInt(q.question_no)) errors.push(`${at}.question_no must be a positive integer.`);
+      else if (seen.has(q.question_no)) errors.push(`${label}: question_no is duplicated.`);
       else seen.add(q.question_no);
 
-      if (!isNonEmptyString(q.subject)) errors.push(`${label}: subject খালি।`);
-      if (!isNonEmptyString(q.question)) errors.push(`${label}: question খালি।`);
-      if (q.topic !== undefined && typeof q.topic !== "string") errors.push(`${label}: topic text হতে হবে।`);
-      if (q.explanation !== undefined && typeof q.explanation !== "string") errors.push(`${label}: explanation text হতে হবে।`);
+      if (!isNonEmptyString(q.subject)) errors.push(`${label}: subject is empty.`);
+      if (!isNonEmptyString(q.question)) errors.push(`${label}: question is empty.`);
+      if (q.topic !== undefined && typeof q.topic !== "string") errors.push(`${label}: topic must be text.`);
+      if (q.explanation !== undefined && typeof q.explanation !== "string") errors.push(`${label}: explanation must be text.`);
 
       if (!Array.isArray(q.options) || q.options.length < 2 || !q.options.every(isNonEmptyString)) {
-        errors.push(`${label}: options-এ অন্তত ২টি খালি নয় এমন text থাকতে হবে।`);
+        errors.push(`${label}: options must contain at least 2 non-empty text values.`);
       } else {
         // Duplicate options are allowed: some source papers genuinely repeat an option.
-        if (!isNonEmptyString(q.correct_answer)) errors.push(`${label}: correct_answer খালি।`);
-        else if (!q.options.includes(q.correct_answer)) errors.push(`${label}: correct_answer options-এর কোনোটির সাথে হুবহু মেলেনি।`);
+        if (!isNonEmptyString(q.correct_answer)) errors.push(`${label}: correct_answer is empty.`);
+        else if (!q.options.includes(q.correct_answer)) errors.push(`${label}: correct_answer does not exactly match any of the options.`);
       }
     });
 
     if (isObject(info) && isPositiveInt(info.total_questions) && info.total_questions !== questions.length) {
-      warnings.push(`exam_info.total_questions ${info.total_questions}, কিন্তু questions-এ আছে ${questions.length}টি।`);
+      warnings.push(`exam_info.total_questions is ${info.total_questions}, but questions has ${questions.length}.`);
     }
   }
 

@@ -1,33 +1,20 @@
-const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
+export const OPTION_LABELS = ["A", "B", "C", "D", "E", "F"];
 
-const BN_MONTHS: Record<string, string> = {
-  january: "জানুয়ারি",
-  february: "ফেব্রুয়ারি",
-  march: "মার্চ",
-  april: "এপ্রিল",
-  may: "মে",
-  june: "জুন",
-  july: "জুলাই",
-  august: "আগস্ট",
-  september: "সেপ্টেম্বর",
-  october: "অক্টোবর",
-  november: "নভেম্বর",
-  december: "ডিসেম্বর",
-};
-
-export const OPTION_LABELS = ["ক", "খ", "গ", "ঘ", "ঙ", "চ"];
-
-export function toBn(value: number | string): string {
-  return String(value).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)]);
+export function formatNumber(value: number | string): string {
+  return typeof value === "number" ? value.toLocaleString("en-AU") : value;
 }
 
-// "15 October, 2026" -> "১৫ অক্টোবর ২০২৬"
+/** "1 question", "12 questions". Pass the plural when it is not just singular + "s". */
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${formatNumber(count)} ${count === 1 ? singular : plural}`;
+}
+
+// "15 October, 2026" -> "15 October 2026"
 export function formatExamDate(date: string): string {
-  const translated = date.replace(/[A-Za-z]+/g, (word) => BN_MONTHS[word.toLowerCase()] ?? word).replace(",", "");
-  return toBn(translated);
+  return date.replace(",", "");
 }
 
-// First letter of a name, keeping Bengali vowel signs attached ("যুব" -> "যু").
+// First letter of a name, keeping Bengali vowel signs attached (so "যুব" gives "যু", not a bare consonant).
 export function firstLetter(text: string): string {
   const trimmed = text.trim();
   if (typeof Intl.Segmenter === "function") {

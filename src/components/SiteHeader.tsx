@@ -10,15 +10,15 @@ export function SiteHeader() {
             <GraduationCapIcon className="size-5" />
           </span>
           <span className="leading-tight">
-            <span className="block text-base font-bold sm:text-lg">সরকারি চাকরি প্রস্তুতি</span>
-            <span className="hidden text-xs text-stone-500 sm:block dark:text-stone-400">বিগত প্রশ্ন · সমাধান · অনুশীলন</span>
+            <span className="block text-base font-bold sm:text-lg">Govt Job Prep</span>
+            <span className="hidden text-xs text-stone-500 sm:block dark:text-stone-400">Past questions · Solutions · Practice</span>
           </span>
         </Link>
         <Link
           href="/"
           className="rounded-full px-4 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white"
         >
-          পরীক্ষাসমূহ
+          Exams
         </Link>
       </div>
     </header>

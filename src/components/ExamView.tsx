@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatExamDate, toBn } from "@/lib/format";
+import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
 import { type Answers, defaultModeSetting, loadAnswers, saveAnswers, touchRecentExam } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
@@ -32,17 +32,17 @@ export function ExamView({ slug }: { slug: string }) {
       <>
         <main className="px-safe flex-1 pt-[max(0.75rem,env(safe-area-inset-top))]">
           {state.code === 404 ? (
-            <ErrorState title="পরীক্ষাটি পাওয়া যায়নি" message="লিংকটি সঠিক কিনা দেখুন, অথবা তালিকা থেকে পরীক্ষা বেছে নিন।" showHomeLink />
+            <ErrorState title="Exam not found" message="Check that the link is correct, or choose an exam from the list." showHomeLink />
           ) : state.code === 0 ? (
             <ErrorState
               offline
-              title="ইন্টারনেট সংযোগ নেই"
-              message="এই পরীক্ষাটি আগে খোলা হয়নি, তাই অফলাইনে পাওয়া যাচ্ছে না।"
+              title="No internet connection"
+              message="This exam hasn't been opened before, so it isn't available offline."
               onRetry={retry}
               showHomeLink
             />
           ) : (
-            <ErrorState title="প্রশ্ন লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} showHomeLink />
+            <ErrorState title="Couldn't load questions" message="Something went wrong on the server. Try again in a moment." onRetry={retry} showHomeLink />
           )}
         </main>
       </>
@@ -76,7 +76,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   const select = (questionNo: number, option: string) => setAnswers((prev) => ({ ...prev, [questionNo]: option }));
 
   const reset = () => {
-    if (answered === 0 || window.confirm("আপনার দেওয়া সব উত্তর মুছে ফেলা হবে। নিশ্চিত?")) {
+    if (answered === 0 || window.confirm("This will clear all your answers. Continue?")) {
       setAnswers({});
       window.scrollTo({ top: 0 });
     }
@@ -89,11 +89,11 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
 
   return (
     <>
-      <title>{`${info.exam_title} | সরকারি চাকরি প্রস্তুতি`}</title>
+      <title>{`${info.exam_title} | Govt Job Prep`}</title>
       <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12`}>
         {/* Phones go back from the bottom toolbar; wider screens have no toolbar, so they get this link. */}
         <AppLink href="/" className="pressable mb-4 hidden items-center text-[15px] text-tint lg:inline-flex">
-          <ChevronLeftIcon className="-ml-1.5 size-5 stroke-[2.5]" /> সব পরীক্ষা
+          <ChevronLeftIcon className="-ml-1.5 size-5 stroke-[2.5]" /> All exams
         </AppLink>
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-12">
@@ -103,13 +103,13 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             <div className="mt-6 flex items-end justify-between gap-4 border-b border-separator">
               <ModeTabs mode={mode} onChange={setMode} />
               <p className="hidden pb-2.5 text-[13px] text-secondary sm:block">
-                {mode === "practice" ? "অপশন বেছে নিয়ে যাচাই করুন" : "সব উত্তর ও ব্যাখ্যা দেখানো হচ্ছে"}
+                {mode === "practice" ? "Choose an option to check your answer" : "Showing all answers and explanations"}
               </p>
             </div>
 
             {subjects.length > 1 && (
               <div className="no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-                <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="সব বিষয়" count={questions.length} />
+                <SubjectChip active={subject === ALL} onClick={() => setSubject(ALL)} label="All subjects" count={questions.length} />
                 {subjects.map(([name, count]) => (
                   <SubjectChip key={name} active={subject === name} onClick={() => setSubject(name)} label={name} count={count} />
                 ))}
@@ -136,7 +136,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
           <aside className="hidden lg:sticky lg:top-[max(1.25rem,env(safe-area-inset-top))] lg:block">
             <ProgressCard mode={mode} progress={progress} onReset={reset} />
             <div className="mt-8">
-              <h2 className="text-[13px] font-semibold text-secondary">প্রশ্নে যান</h2>
+              <h2 className="text-[13px] font-semibold text-secondary">Go to question</h2>
               <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-6" />
             </div>
           </aside>
@@ -146,7 +146,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
       <BottomToolbar mode={mode} progress={progress} onOpenNavigator={() => setNavigatorOpen(true)} onReset={reset} />
 
       {navigatorOpen && (
-        <Sheet title="প্রশ্নে যান" onClose={() => setNavigatorOpen(false)}>
+        <Sheet title="Go to question" onClose={() => setNavigatorOpen(false)}>
           <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="grid-cols-6 sm:grid-cols-10" />
         </Sheet>
       )}
@@ -161,9 +161,9 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
   const meta = [
     formatExamDate(info.exam_date),
     info.exam_type,
-    `${toBn(info.total_questions)}টি প্রশ্ন`,
-    `${toBn(info.total_marks)} নম্বর`,
-    `${toBn(subjectCount)}টি বিষয়`,
+    pluralize(info.total_questions, "question"),
+    pluralize(info.total_marks, "mark"),
+    pluralize(subjectCount, "subject"),
   ];
 
   return (
@@ -192,14 +192,14 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
             rel="noopener noreferrer"
             className="pressable ml-1 inline-flex items-center gap-1 font-medium text-tint"
           >
-            মূল উৎস <ExternalLinkIcon className="size-3.5" />
+            Source <ExternalLinkIcon className="size-3.5" />
           </a>
         )}
       </p>
 
       {available < info.total_questions && (
         <p className="mt-2 text-[13px] text-tertiary">
-          এখানে {toBn(info.total_questions)}টির মধ্যে {toBn(available)}টি প্রশ্ন যুক্ত করা হয়েছে।
+          {formatNumber(available)} of {pluralize(info.total_questions, "question")} added here.
         </p>
       )}
     </header>
@@ -209,12 +209,12 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
 // Two text tabs with an underline under the selected one; the row's bottom border is the track.
 function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const options: { value: Mode; label: string }[] = [
-    { value: "practice", label: "অনুশীলন" },
-    { value: "study", label: "পড়ার মোড" },
+    { value: "practice", label: "Practice" },
+    { value: "study", label: "Study" },
   ];
 
   return (
-    <div role="radiogroup" aria-label="মোড নির্বাচন" className="-mb-px flex gap-6">
+    <div role="radiogroup" aria-label="Mode" className="-mb-px flex gap-6">
       {options.map((o) => (
         <button
           key={o.value}
@@ -244,7 +244,7 @@ function SubjectChip({ active, onClick, label, count }: { active: boolean; onCli
       }`}
     >
       {label}
-      <span className="text-[12px] text-tertiary tabular-nums">{toBn(count)}</span>
+      <span className="text-[12px] text-tertiary tabular-nums">{formatNumber(count)}</span>
     </button>
   );
 }
@@ -258,7 +258,7 @@ function ProgressBar({ progress }: { progress: Progress }) {
       aria-valuemin={0}
       aria-valuemax={progress.total}
       aria-valuenow={progress.answered}
-      aria-label="অগ্রগতি"
+      aria-label="Progress"
     >
       <div className="bg-ios-green transition-all duration-500" style={{ width: `${pct(progress.correct)}%` }} />
       <div className="bg-ios-red transition-all duration-500" style={{ width: `${pct(progress.wrong)}%` }} />
@@ -271,26 +271,26 @@ function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progr
 
   return (
     <div>
-      <h2 className="text-[13px] font-semibold text-secondary">অগ্রগতি</h2>
+      <h2 className="text-[13px] font-semibold text-secondary">Progress</h2>
       <p className="mt-2 text-[34px] leading-none font-bold tabular-nums">
-        {toBn(accuracy)}%<span className="ml-2 text-[13px] font-medium text-secondary">নির্ভুলতা</span>
+        {formatNumber(accuracy)}%<span className="ml-2 text-[13px] font-medium text-secondary">Accuracy</span>
       </p>
       <div className="mt-4">
         <ProgressBar progress={progress} />
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-2">
-        <SmallStat label="উত্তর" value={progress.answered} className="text-label" />
-        <SmallStat label="সঠিক" value={progress.correct} className="text-ios-green" />
-        <SmallStat label="ভুল" value={progress.wrong} className="text-ios-red" />
+        <SmallStat label="Answered" value={progress.answered} className="text-label" />
+        <SmallStat label="Correct" value={progress.correct} className="text-ios-green" />
+        <SmallStat label="Wrong" value={progress.wrong} className="text-ios-red" />
       </dl>
-      {mode === "study" && <p className="mt-3 text-[13px] text-secondary">অনুশীলন মোডে উত্তর দিলে অগ্রগতি এখানে দেখা যাবে।</p>}
+      {mode === "study" && <p className="mt-3 text-[13px] text-secondary">Answer questions in Practice mode to see your progress here.</p>}
       <button
         type="button"
         onClick={onReset}
         disabled={progress.answered === 0}
         className="pressable mt-4 inline-flex items-center gap-1.5 text-[14px] font-medium text-ios-red disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <ResetIcon className="size-4" /> আবার শুরু করুন
+        <ResetIcon className="size-4" /> Start over
       </button>
     </div>
   );
@@ -300,7 +300,7 @@ function SmallStat({ label, value, className }: { label: string; value: number; 
   return (
     <div className="flex flex-col-reverse">
       <dt className="text-[12px] text-secondary">{label}</dt>
-      <dd className={`text-[20px] font-semibold tabular-nums ${className}`}>{toBn(value)}</dd>
+      <dd className={`text-[20px] font-semibold tabular-nums ${className}`}>{formatNumber(value)}</dd>
     </div>
   );
 }
@@ -331,10 +331,10 @@ function QuestionNavigator({
             key={q.question_no}
             type="button"
             onClick={() => onJump(q.question_no)}
-            aria-label={`প্রশ্ন ${toBn(q.question_no)}-এ যান`}
+            aria-label={`Go to question ${formatNumber(q.question_no)}`}
             className={`pressable aspect-square rounded-full text-[14px] font-medium tabular-nums ${tone}`}
           >
-            {toBn(q.question_no)}
+            {formatNumber(q.question_no)}
           </button>
         );
       })}
@@ -358,7 +358,7 @@ function BottomToolbar({
   return (
     <div className="ios-material hairline-t px-safe fixed inset-x-0 bottom-0 z-20 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-1">
-        <AppLink href="/" aria-label="সব পরীক্ষায় ফিরে যান" className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint">
+        <AppLink href="/" aria-label="Back to all exams" className="pressable -ml-2 grid size-11 shrink-0 place-items-center text-tint">
           <ChevronLeftIcon className="size-7 stroke-[2.5]" />
         </AppLink>
         <div className="min-w-0 flex-1 px-1">
@@ -366,12 +366,12 @@ function BottomToolbar({
             <>
               <div className="flex items-center justify-between gap-2 text-[13px]">
                 <span className="font-semibold">
-                  উত্তর {toBn(progress.answered)}/{toBn(progress.total)}
+                  Answered {formatNumber(progress.answered)}/{formatNumber(progress.total)}
                 </span>
                 <span className="text-secondary">
-                  <span className="text-ios-green">সঠিক {toBn(progress.correct)}</span>
+                  <span className="text-ios-green">Correct {formatNumber(progress.correct)}</span>
                   {" · "}
-                  <span className="text-ios-red">ভুল {toBn(progress.wrong)}</span>
+                  <span className="text-ios-red">Wrong {formatNumber(progress.wrong)}</span>
                 </span>
               </div>
               <div className="mt-1.5">
@@ -379,7 +379,7 @@ function BottomToolbar({
               </div>
             </>
           ) : (
-            <p className="text-center text-[13px] font-medium text-secondary">পড়ার মোড · {toBn(progress.total)}টি প্রশ্ন</p>
+            <p className="text-center text-[13px] font-medium text-secondary">Study mode · {pluralize(progress.total, "question")}</p>
           )}
         </div>
         {mode === "practice" && (
@@ -387,7 +387,7 @@ function BottomToolbar({
             type="button"
             onClick={onReset}
             disabled={progress.answered === 0}
-            aria-label="আবার শুরু করুন"
+            aria-label="Start over"
             className="pressable grid size-11 shrink-0 place-items-center text-tint disabled:text-tertiary"
           >
             <ResetIcon className="size-5.5" />
@@ -396,7 +396,7 @@ function BottomToolbar({
         <button
           type="button"
           onClick={onOpenNavigator}
-          aria-label="প্রশ্ন তালিকা খুলুন"
+          aria-label="Open question list"
           className="pressable -mr-2 grid size-11 shrink-0 place-items-center text-tint"
         >
           <GridIcon className="size-5.5" />
@@ -408,14 +408,14 @@ function BottomToolbar({
 
 function CompletionCard({ progress, onReset }: { progress: Progress; onReset: () => void }) {
   const accuracy = Math.round((progress.correct / progress.total) * 100);
-  const message = accuracy >= 80 ? "অসাধারণ! চমৎকার প্রস্তুতি।" : accuracy >= 50 ? "ভালো হয়েছে! আরেকটু অনুশীলন করুন।" : "হাল ছাড়বেন না, আবার চেষ্টা করুন।";
+  const message = accuracy >= 80 ? "Excellent! You're well prepared." : accuracy >= 50 ? "Well done! A bit more practice will help." : "Don't give up. Try again.";
 
   return (
     <div className="mt-2 animate-fade-in border-t border-separator py-10 text-center">
-      <p className="text-[13px] font-semibold text-secondary">অনুশীলন সম্পন্ন</p>
+      <p className="text-[13px] font-semibold text-secondary">Practice complete</p>
       <p className="mt-1 text-[48px] leading-tight font-bold tabular-nums">
-        {toBn(progress.correct)}
-        <span className="text-[28px] text-tertiary">/{toBn(progress.total)}</span>
+        {formatNumber(progress.correct)}
+        <span className="text-[28px] text-tertiary">/{formatNumber(progress.total)}</span>
       </p>
       <p className="mt-1 text-[15px] text-secondary">{message}</p>
       <button
@@ -423,7 +423,7 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
         onClick={onReset}
         className="pressable mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-label px-6 text-[15px] font-semibold text-canvas"
       >
-        <ResetIcon className="size-4.5" /> আবার অনুশীলন করুন
+        <ResetIcon className="size-4.5" /> Practise again
       </button>
     </div>
   );
@@ -431,7 +431,7 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
 
 export function ExamSkeleton() {
   return (
-    <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-16`} aria-busy="true" aria-label="লোড হচ্ছে">
+    <main className={`px-safe mx-auto w-full ${WIDTH} flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-16`} aria-busy="true" aria-label="Loading">
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
         <div>
           <Skeleton className="h-3.5 w-1/3" />

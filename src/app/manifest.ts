@@ -3,10 +3,10 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "সরকারি চাকরি প্রস্তুতি",
-    short_name: "চাকরি প্রস্তুতি",
-    description: "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন, সঠিক উত্তর ও ব্যাখ্যা। অফলাইনেও পড়া যায়।",
-    lang: "bn",
+    name: "Govt Job Prep",
+    short_name: "Job Prep",
+    description: "Past government job exam questions with correct answers and explanations. Works offline too.",
+    lang: "en",
     start_url: "/",
     scope: "/",
     display: "standalone",

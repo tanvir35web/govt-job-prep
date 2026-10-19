@@ -1,4 +1,6 @@
-// Cover gradients. Each organisation keeps one colour, so its exams are easy to spot on Home and in Reels.
+// Each organisation keeps one colour, so its exams are easy to spot on Home and in Reels.
+// The strong gradient and the soft tone at the same index are the same hue.
+
 const COVERS = [
   "from-emerald-500 to-teal-700",
   "from-sky-500 to-indigo-600",
@@ -8,8 +10,77 @@ const COVERS = [
   "from-cyan-500 to-blue-700",
 ];
 
-export function coverFor(organization: string) {
+export type SoftTone = {
+  /** Card background: a pale wash in light mode, a faint glow in dark mode. */
+  card: string;
+  /** A more see-through version of card, for Home. */
+  wash: string;
+  /** Text and icons in the hue, readable on the card. */
+  accent: string;
+  /** Solid fill: progress bars, the play button. */
+  solid: string;
+  /** Progress bar track. */
+  track: string;
+};
+
+// Full class strings, so Tailwind can see every one of them.
+const SOFT_TONES: SoftTone[] = [
+  {
+    card: "bg-emerald-50 dark:bg-emerald-400/15",
+    wash: "bg-emerald-50/60 dark:bg-emerald-400/10",
+    accent: "text-emerald-700 dark:text-emerald-300",
+    solid: "bg-emerald-600 dark:bg-emerald-400",
+    track: "bg-emerald-600/15 dark:bg-emerald-300/15",
+  },
+  {
+    card: "bg-sky-50 dark:bg-sky-400/15",
+    wash: "bg-sky-50/60 dark:bg-sky-400/10",
+    accent: "text-sky-700 dark:text-sky-300",
+    solid: "bg-sky-600 dark:bg-sky-400",
+    track: "bg-sky-600/15 dark:bg-sky-300/15",
+  },
+  {
+    card: "bg-violet-50 dark:bg-violet-400/15",
+    wash: "bg-violet-50/60 dark:bg-violet-400/10",
+    accent: "text-violet-700 dark:text-violet-300",
+    solid: "bg-violet-600 dark:bg-violet-400",
+    track: "bg-violet-600/15 dark:bg-violet-300/15",
+  },
+  {
+    card: "bg-amber-50 dark:bg-amber-400/15",
+    wash: "bg-amber-50/60 dark:bg-amber-400/10",
+    accent: "text-amber-700 dark:text-amber-300",
+    solid: "bg-amber-600 dark:bg-amber-400",
+    track: "bg-amber-600/15 dark:bg-amber-300/15",
+  },
+  {
+    card: "bg-rose-50 dark:bg-rose-400/15",
+    wash: "bg-rose-50/60 dark:bg-rose-400/10",
+    accent: "text-rose-700 dark:text-rose-300",
+    solid: "bg-rose-600 dark:bg-rose-400",
+    track: "bg-rose-600/15 dark:bg-rose-300/15",
+  },
+  {
+    card: "bg-cyan-50 dark:bg-cyan-400/15",
+    wash: "bg-cyan-50/60 dark:bg-cyan-400/10",
+    accent: "text-cyan-700 dark:text-cyan-300",
+    solid: "bg-cyan-600 dark:bg-cyan-400",
+    track: "bg-cyan-600/15 dark:bg-cyan-300/15",
+  },
+];
+
+function toneIndex(name: string) {
   let hash = 0;
-  for (const ch of organization) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  return COVERS[Math.abs(hash) % COVERS.length];
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return Math.abs(hash) % COVERS.length;
+}
+
+/** Strong gradient (use with bg-linear-to-*), for tiles and slide washes. */
+export function coverFor(name: string) {
+  return COVERS[toneIndex(name)];
+}
+
+/** Soft, theme-aware tone in the same hue, for calm cards. */
+export function softToneFor(name: string): SoftTone {
+  return SOFT_TONES[toneIndex(name)];
 }

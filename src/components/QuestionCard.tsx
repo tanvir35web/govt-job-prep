@@ -1,4 +1,4 @@
-import { OPTION_LABELS, toBn } from "@/lib/format";
+import { OPTION_LABELS, formatNumber } from "@/lib/format";
 import type { Question } from "@/lib/types";
 import { CheckIcon, XIcon } from "./icons";
 
@@ -24,7 +24,7 @@ export function QuestionCard({
   return (
     <article id={`q-${q.question_no}`} className="scroll-mt-[max(1rem,env(safe-area-inset-top))] py-6">
       <p className="text-[13px] text-secondary">
-        <span className="font-semibold text-label tabular-nums">{toBn(q.question_no)}</span>
+        <span className="font-semibold text-label tabular-nums">{formatNumber(q.question_no)}</span>
         <span aria-hidden="true" className="mx-1.5 text-tertiary">
           /
         </span>
@@ -62,7 +62,7 @@ export function QuestionCard({
                 revealed ? "cursor-default" : "cursor-pointer"
               } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tint`}
             >
-              <span className={`w-4 shrink-0 text-[14px] font-semibold ${labelTone}`}>{OPTION_LABELS[i] ?? toBn(i + 1)}</span>
+              <span className={`w-4 shrink-0 text-[14px] font-semibold ${labelTone}`}>{OPTION_LABELS[i] ?? formatNumber(i + 1)}</span>
               <span className="flex-1">{option}</span>
               {revealed && isCorrect && <CheckIcon className="size-4.5 shrink-0 stroke-[2.5]" />}
               {revealed && isSelected && !isCorrect && <XIcon className="size-4.5 shrink-0 stroke-[2.5]" />}
@@ -73,13 +73,13 @@ export function QuestionCard({
 
       {mode === "practice" && selected !== undefined && (
         <p className={`mt-3 animate-fade-in text-[14px] font-semibold ${answeredCorrectly ? "text-ios-green" : "text-ios-red"}`}>
-          {answeredCorrectly ? "সঠিক উত্তর" : `ভুল উত্তর · সঠিক: ${q.correct_answer}`}
+          {answeredCorrectly ? "Correct answer" : `Wrong answer · Correct: ${q.correct_answer}`}
         </p>
       )}
 
       {revealed && q.explanation && (
         <div className="mt-4 animate-fade-in border-l-2 border-ios-yellow/60 pl-3.5">
-          <p className="text-[12px] font-semibold tracking-wide text-ios-yellow">ব্যাখ্যা</p>
+          <p className="text-[12px] font-semibold tracking-wide text-ios-yellow">Explanation</p>
           <p className="mt-1 text-[15px] leading-relaxed text-label/80">{q.explanation}</p>
         </div>
       )}

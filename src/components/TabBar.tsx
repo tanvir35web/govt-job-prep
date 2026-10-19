@@ -6,9 +6,9 @@ import { AppLink } from "./AppLink";
 import { GearIcon, HomeIcon, ReelsIcon } from "./icons";
 
 const TABS = [
-  { href: "/", label: "হোম", Icon: HomeIcon },
-  { href: "/reels", label: "রিলস", Icon: ReelsIcon },
-  { href: "/settings", label: "সেটিংস", Icon: GearIcon },
+  { href: "/", label: "Home", Icon: HomeIcon },
+  { href: "/reels", label: "Reels", Icon: ReelsIcon },
+  { href: "/settings", label: "Settings", Icon: GearIcon },
 ] as const;
 
 // Floating tab bar in the iOS 26 style: a translucent capsule above the home indicator, with a
@@ -21,7 +21,7 @@ export function TabBar() {
 
   return (
     <nav
-      aria-label="প্রধান মেনু"
+      aria-label="Main menu"
       className="px-safe pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-30 flex justify-center"
     >
       <ul className="ios-material pointer-events-auto relative grid h-16 w-full max-w-80 grid-cols-3 rounded-full p-1 shadow-[0_8px_32px_rgb(0_0_0/0.14),0_2px_6px_rgb(0_0_0/0.06)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.6)] dark:ring-white/10">
@@ -40,7 +40,7 @@ export function TabBar() {
               <AppLink
                 href={href}
                 aria-current={active ? "page" : undefined}
-                aria-label={badge ? `${label}, নতুন আপডেট আছে` : label}
+                aria-label={badge ? `${label}, update available` : label}
                 onClick={(e) => {
                   if (!active) return;
                   e.preventDefault();

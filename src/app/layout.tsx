@@ -13,14 +13,14 @@ const hindSiliguri = Hind_Siliguri({
 
 export const metadata: Metadata = {
   title: {
-    default: "সরকারি চাকরি প্রস্তুতি",
-    template: "%s | সরকারি চাকরি প্রস্তুতি",
+    default: "Govt Job Prep",
+    template: "%s | Govt Job Prep",
   },
-  description: "বিগত সরকারি চাকরি পরীক্ষার প্রশ্ন, সঠিক উত্তর ও ব্যাখ্যা। পড়ুন এবং নিজে অনুশীলন করুন।",
-  applicationName: "চাকরি প্রস্তুতি",
+  description: "Past government job exam questions with correct answers and explanations. Study them or practise on your own.",
+  applicationName: "Govt Job Prep",
   appleWebApp: {
     capable: true,
-    title: "চাকরি প্রস্তুতি",
+    title: "Job Prep",
     // "default" keeps dark status bar text on the light bar; "black-translucent" would force white text.
     statusBarStyle: "default",
   },
@@ -45,7 +45,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // data-theme is set by the inline script before hydration, so React must not compare it.
-    <html lang="bn" className={`${hindSiliguri.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${hindSiliguri.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

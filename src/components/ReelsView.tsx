@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { coverFor } from "@/lib/covers";
-import { OPTION_LABELS, firstLetter, toBn } from "@/lib/format";
+import { OPTION_LABELS, firstLetter, formatNumber, pluralize } from "@/lib/format";
 import { saveExamOffline } from "@/lib/offline";
 import { type Answers, defaultModeSetting, loadAnswers, loadReelsPosition, saveAnswers, saveLastReel, saveReelsPosition } from "@/lib/settings";
 import type { ExamDetailResponse, ExamInfo, Question } from "@/lib/types";
@@ -39,21 +39,21 @@ export function ReelsView({ slug }: { slug: string }) {
   if (state.status === "loading") return <ReelsSkeleton />;
 
   if (state.status === "error") {
-    const back = { showHomeLink: true, homeHref: "/reels", homeLabel: "রিলস তালিকা" };
+    const back = { showHomeLink: true, homeHref: "/reels", homeLabel: "All reels" };
     return (
       <main className="px-safe flex-1 pt-[max(0.75rem,env(safe-area-inset-top))]">
         {state.code === 404 ? (
-          <ErrorState title="পরীক্ষাটি পাওয়া যায়নি" message="লিংকটি সঠিক কিনা দেখুন, অথবা তালিকা থেকে পরীক্ষা বেছে নিন।" {...back} />
+          <ErrorState title="Exam not found" message="Check the link, or choose an exam from the list." {...back} />
         ) : state.code === 0 ? (
           <ErrorState
             offline
-            title="ইন্টারনেট সংযোগ নেই"
-            message="এই পরীক্ষাটি আগে খোলা হয়নি, তাই অফলাইনে পাওয়া যাচ্ছে না।"
+            title="No internet connection"
+            message="This exam hasn't been opened before, so it isn't available offline."
             onRetry={retry}
             {...back}
           />
         ) : (
-          <ErrorState title="প্রশ্ন লোড করা যায়নি" message="সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।" onRetry={retry} {...back} />
+          <ErrorState title="Couldn't load questions" message="Something went wrong on the server. Try again in a moment." onRetry={retry} {...back} />
         )}
       </main>
     );
@@ -62,7 +62,7 @@ export function ReelsView({ slug }: { slug: string }) {
   if (state.data.questions.length === 0) {
     return (
       <main className="px-safe flex-1 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <ErrorState title="কোনো প্রশ্ন নেই" message="এই পরীক্ষায় এখনো প্রশ্ন যুক্ত করা হয়নি।" showHomeLink homeHref="/reels" homeLabel="রিলস তালিকা" />
+        <ErrorState title="No questions" message="No questions have been added to this exam yet." showHomeLink homeHref="/reels" homeLabel="All reels" />
       </main>
     );
   }
@@ -84,7 +84,6 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const [current, setCurrent] = useState(() => Math.min(loadReelsPosition(slug), questions.length - 1));
   const [toast, setToast] = useState<string | null>(null);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
-  const feedRef = useRef<HTMLElement>(null);
   const slideRefs = useRef<(HTMLElement | null)[]>([]);
   // The slide count includes the summary slide after the last question.
   const slideCount = questions.length + 1;
@@ -99,10 +98,21 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // The page itself scrolls (not an inner box), so mobile browsers hide their address bar while
+  // swiping and each slide gets the whole screen. Snapping is switched on for this page only.
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.scrollSnapType;
+    root.style.scrollSnapType = "y mandatory";
+    return () => {
+      root.style.scrollSnapType = previous;
+    };
+  }, []);
+
   // Reopen on the question that was showing last time. Runs once; later changes come from scrolling.
   const initial = useRef(current);
   useEffect(() => {
-    slideRefs.current[initial.current]?.scrollIntoView({ block: "start" });
+    slideRefs.current[initial.current]?.scrollIntoView({ block: "start", behavior: "instant" });
   }, []);
 
   // The slide crossing the middle of the screen is the current one; works for slides taller than the screen too.
@@ -113,7 +123,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
           if (entry.isIntersecting) setCurrent(Number((entry.target as HTMLElement).dataset.index));
         }
       },
-      { root: feedRef.current, rootMargin: "-50% 0px -50% 0px" },
+      { rootMargin: "-50% 0px -50% 0px" },
     );
     for (const slide of slideRefs.current) if (slide) observer.observe(slide);
     return () => observer.disconnect();
@@ -151,7 +161,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
 
   const reset = () => {
     if (answered === 0) return goTo(0);
-    if (window.confirm("আপনার দেওয়া সব উত্তর মুছে ফেলা হবে। নিশ্চিত?")) {
+    if (window.confirm("This will clear all your answers. Continue?")) {
       setAnswers({});
       goTo(0);
     }
@@ -175,14 +185,14 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
   const toggleMode = () => {
     const next = mode === "practice" ? "study" : "practice";
     setMode(next);
-    setToast(next === "practice" ? "অনুশীলন মোড: উত্তর দিয়ে যাচাই করুন" : "পড়ার মোড: সব উত্তর দেখানো হচ্ছে");
+    setToast(next === "practice" ? "Practice mode: answer to check" : "Study mode: showing all answers");
   };
 
   return (
     <>
-      <title>{`${info.exam_title} · রিলস | সরকারি চাকরি প্রস্তুতি`}</title>
+      <title>{`${info.exam_title} · Reels | Govt Job Prep`}</title>
 
-      <main ref={feedRef} className="no-scrollbar fixed inset-0 snap-y snap-mandatory overflow-y-auto overscroll-contain bg-canvas text-label" aria-label="প্রশ্ন রিলস">
+      <main className="bg-canvas text-label" aria-label="Question reels">
         {questions.map((q, i) => (
           <ReelSlide
             key={q.question_no}
@@ -204,8 +214,8 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
             slideRefs.current[questions.length] = el;
           }}
           data-index={questions.length}
-          aria-label="ফলাফল"
-          className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
+          aria-label="Results"
+          className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
         >
           <SoftWash cover={coverFor(info.organization)} />
           <SummaryCard mode={mode} total={questions.length} answered={answered} correct={correct} onReset={reset} onRestart={() => goTo(0)} />
@@ -236,7 +246,7 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
       />
 
       {subjectsOpen && (
-        <Sheet title="বিষয় বেছে নিন" onClose={() => setSubjectsOpen(false)}>
+        <Sheet title="Choose a subject" onClose={() => setSubjectsOpen(false)}>
           <SubjectList subjects={subjects} questions={questions} answers={answers} mode={mode} current={currentSubject} onPick={jumpToSubject} />
         </Sheet>
       )}
@@ -282,14 +292,14 @@ function ReelSlide({
     <section
       ref={ref}
       data-index={index}
-      aria-label={`প্রশ্ন ${toBn(index + 1)} / ${toBn(total)}`}
-      className={`relative flex min-h-full snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
+      aria-label={`Question ${formatNumber(index + 1)} of ${formatNumber(total)}`}
+      className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center bg-canvas ${SLIDE_PADDING}`}
     >
       <SoftWash cover={coverFor(q.subject)} />
 
       <article className="relative mx-auto w-full max-w-xl">
         <header className="flex items-center justify-between gap-3 text-[12px] font-semibold">
-          <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-canvas">প্রশ্ন {toBn(q.question_no)}</span>
+          <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-canvas">Question {formatNumber(q.question_no)}</span>
           <span className="min-w-0 truncate text-right text-secondary">
             {q.subject}
             {q.topic && <span className="font-medium text-tertiary"> · {q.topic}</span>}
@@ -302,7 +312,7 @@ function ReelSlide({
           {q.options.map((option, i) => (
             <ReelOption
               key={i}
-              label={OPTION_LABELS[i] ?? toBn(i + 1)}
+              label={OPTION_LABELS[i] ?? formatNumber(i + 1)}
               option={option}
               revealed={revealed}
               correct={option === q.correct_answer}
@@ -315,7 +325,7 @@ function ReelSlide({
         {revealed && q.explanation && (
           <div className="mt-4 animate-fade-in rounded-2xl bg-ios-yellow/10 p-3.5">
             <p className="flex items-center gap-1.5 text-[13px] font-bold text-ios-yellow">
-              <LightbulbIcon className="size-4" /> ব্যাখ্যা
+              <LightbulbIcon className="size-4" /> Explanation
             </p>
             <p className="mt-1 text-[15px] leading-relaxed text-label/85">{q.explanation}</p>
           </div>
@@ -331,7 +341,7 @@ function ReelSlide({
               revealed ? "bg-tint text-white dark:text-black" : "bg-fill text-label"
             }`}
           >
-            {isLast ? "ফলাফল" : revealed ? "পরের প্রশ্ন" : "এড়িয়ে যান"} <ChevronDownIcon className="size-4 stroke-3" />
+            {isLast ? "Results" : revealed ? "Next" : "Skip"} <ChevronDownIcon className="size-4 stroke-3" />
           </button>
         </footer>
       </article>
@@ -340,12 +350,12 @@ function ReelSlide({
 }
 
 function SlideStatus({ mode, selected, correctAnswer, first }: { mode: Mode; selected: string | undefined; correctAnswer: string; first: boolean }) {
-  if (mode === "study") return <p className="text-[13px] font-medium text-secondary">পড়ার মোড</p>;
+  if (mode === "study") return <p className="text-[13px] font-medium text-secondary">Study mode</p>;
   if (selected === undefined) {
     return (
       <p className="flex min-w-0 items-center gap-1 text-[13px] font-medium text-secondary">
         {first && <ChevronUpIcon className="size-4 shrink-0 animate-bounce stroke-[2.5]" />}
-        {first ? "উত্তর দিন, তারপর সোয়াইপ করুন" : "একটি উত্তর বেছে নিন"}
+        {first ? "Answer, then swipe up" : "Choose an answer"}
       </p>
     );
   }
@@ -353,7 +363,7 @@ function SlideStatus({ mode, selected, correctAnswer, first }: { mode: Mode; sel
   return (
     <p className={`inline-flex min-w-0 animate-fade-in items-center gap-1.5 text-[15px] font-bold ${right ? "text-ios-green" : "text-ios-red"}`}>
       {right ? <CheckIcon className="size-4.5 shrink-0 stroke-3" /> : <XIcon className="size-4.5 shrink-0 stroke-3" />}
-      {right ? "সঠিক উত্তর!" : "ভুল উত্তর"}
+      {right ? "Correct!" : "Wrong"}
     </p>
   );
 }
@@ -427,7 +437,7 @@ function ReelsTopBar({
       <div className="ios-material pointer-events-auto relative mx-auto flex max-w-xl items-center gap-2.5 overflow-hidden rounded-full p-1.5 pr-2 shadow-[0_8px_32px_rgb(0_0_0/0.12),0_2px_6px_rgb(0_0_0/0.05)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.5)] dark:ring-white/10">
         <AppLink
           href="/reels"
-          aria-label="রিলস তালিকায় ফিরে যান"
+          aria-label="Back to all reels"
           className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
         >
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
@@ -439,25 +449,25 @@ function ReelsTopBar({
         </div>
 
         {mode === "practice" && (
-          <div className="flex shrink-0 items-center gap-2 text-[13px] font-bold" aria-label={`সঠিক ${toBn(correct)}, ভুল ${toBn(wrong)}`}>
+          <div className="flex shrink-0 items-center gap-2 text-[13px] font-bold" aria-label={`${formatNumber(correct)} correct, ${formatNumber(wrong)} wrong`}>
             <span className="inline-flex items-center gap-0.5 text-ios-green">
-              <CheckIcon className="size-3.5 stroke-3" /> {toBn(correct)}
+              <CheckIcon className="size-3.5 stroke-3" /> {formatNumber(correct)}
             </span>
             <span className="inline-flex items-center gap-0.5 text-ios-red">
-              <XIcon className="size-3.5 stroke-3" /> {toBn(wrong)}
+              <XIcon className="size-3.5 stroke-3" /> {formatNumber(wrong)}
             </span>
           </div>
         )}
 
         <span className="shrink-0 rounded-full bg-label px-2.5 py-1 text-[12px] font-bold text-canvas tabular-nums">
-          {toBn(position)}/{toBn(total)}
+          {formatNumber(position)}/{formatNumber(total)}
         </span>
 
         {/* Position in the feed, drawn as a hairline along the capsule's lower edge. */}
         <div
           className="absolute inset-x-6 bottom-0 h-0.5 overflow-hidden rounded-full bg-fill"
           role="progressbar"
-          aria-label="অবস্থান"
+          aria-label="Position"
           aria-valuemin={1}
           aria-valuemax={total}
           aria-valuenow={position}
@@ -497,20 +507,20 @@ function ActionRail({
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center text-label md:inset-x-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:bottom-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="pointer-events-auto ios-material grid grid-cols-3 gap-1 rounded-full p-1.5 shadow-[0_8px_32px_rgb(0_0_0/0.12)] ring-[0.5px] ring-separator md:flex md:flex-col md:gap-4 md:rounded-none md:bg-transparent md:p-0 md:shadow-none md:ring-0 md:backdrop-blur-none">
-        <RailButton label={mode === "practice" ? "অনুশীলন" : "পড়া"} ariaLabel={mode === "practice" ? "পড়ার মোডে যান" : "অনুশীলন মোডে যান"} onClick={onToggleMode}>
+        <RailButton label={mode === "practice" ? "Practice" : "Study"} ariaLabel={mode === "practice" ? "Switch to study mode" : "Switch to practice mode"} onClick={onToggleMode}>
           {mode === "practice" ? <TargetIcon className="size-5 md:size-6" /> : <BookOpenIcon className="size-5 md:size-6" />}
         </RailButton>
-        <RailButton label="বিষয়" ariaLabel="বিষয় অনুযায়ী প্রশ্নে যান" onClick={onSubjects} disabled={!hasSubjects}>
+        <RailButton label="Subjects" ariaLabel="Jump to a subject" onClick={onSubjects} disabled={!hasSubjects}>
           <ListIcon className="size-5 md:size-6" />
         </RailButton>
-        <RailButton label="আবার" ariaLabel="আবার শুরু করুন" onClick={onReset} disabled={!canReset && atStart}>
+        <RailButton label="Restart" ariaLabel="Start over" onClick={onReset} disabled={!canReset && atStart}>
           <ResetIcon className="size-5 md:size-6" />
         </RailButton>
         <div className="hidden flex-col gap-3 md:flex">
-          <RailButton ariaLabel="আগের প্রশ্ন" onClick={onPrev} disabled={atStart}>
+          <RailButton ariaLabel="Previous question" onClick={onPrev} disabled={atStart}>
             <ChevronUpIcon className="size-6 stroke-[2.5]" />
           </RailButton>
-          <RailButton ariaLabel="পরের প্রশ্ন" onClick={onNext} disabled={atEnd}>
+          <RailButton ariaLabel="Next question" onClick={onNext} disabled={atEnd}>
             <ChevronDownIcon className="size-6 stroke-[2.5]" />
           </RailButton>
         </div>
@@ -587,15 +597,15 @@ function SubjectList({
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-[17px] font-semibold">{name}</span>
                   {here ? (
-                    <span className="shrink-0 rounded-full bg-tint/15 px-2 py-0.5 text-[12px] font-bold text-tint">এখন এখানে</span>
+                    <span className="shrink-0 rounded-full bg-tint/15 px-2 py-0.5 text-[12px] font-bold text-tint">Current</span>
                   ) : (
                     done && mode === "practice" && <CheckIcon className="size-4.5 shrink-0 stroke-3 text-ios-green" />
                   )}
                 </div>
                 <p className="mt-0.5 text-[13px] text-secondary">
-                  {toBn(indices.length)}টি প্রশ্ন
-                  {contiguous && indices.length > 1 && ` · প্রশ্ন ${toBn(questions[indices[0]].question_no)}–${toBn(questions[indices.at(-1)!].question_no)}`}
-                  {mode === "practice" && ` · ${toBn(answered)}টির উত্তর দেওয়া`}
+                  {pluralize(indices.length, "question")}
+                  {contiguous && indices.length > 1 && ` · Questions ${formatNumber(questions[indices[0]].question_no)}–${formatNumber(questions[indices.at(-1)!].question_no)}`}
+                  {mode === "practice" && ` · ${formatNumber(answered)} answered`}
                 </p>
                 {mode === "practice" && (
                   <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-fill">
@@ -633,8 +643,8 @@ function ScoreRing({ value, total }: { value: number; total: number }) {
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <p className="text-[40px] leading-none font-bold">
-          {toBn(value)}
-          <span className="text-[20px] text-tertiary">/{toBn(total)}</span>
+          {formatNumber(value)}
+          <span className="text-[20px] text-tertiary">/{formatNumber(total)}</span>
         </p>
       </div>
     </div>
@@ -660,16 +670,16 @@ function SummaryCard({
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
   const message =
     answered === 0
-      ? "এখনো কোনো প্রশ্নের উত্তর দেননি।"
+      ? "You haven't answered any questions yet."
       : accuracy >= 80
-        ? "অসাধারণ! চমৎকার প্রস্তুতি।"
+        ? "Excellent! You're well prepared."
         : accuracy >= 50
-          ? "ভালো হয়েছে! আরেকটু অনুশীলন করুন।"
-          : "হাল ছাড়বেন না, আবার চেষ্টা করুন।";
+          ? "Well done! A bit more practice will help."
+          : "Don't give up. Try again.";
 
   return (
     <div className="relative mx-auto w-full max-w-md text-center">
-      <p className="text-[13px] font-bold tracking-wide text-tint">{practice ? "রিলস শেষ" : "সব প্রশ্ন পড়া শেষ"}</p>
+      <p className="text-[13px] font-bold tracking-wide text-tint">{practice ? "Reels complete" : "All questions studied"}</p>
 
       {practice ? (
         <>
@@ -678,15 +688,15 @@ function SummaryCard({
           </div>
           <p className="mt-4 text-[20px] font-bold">{message}</p>
           <dl className="mt-5 grid grid-cols-3 border-y border-separator py-3">
-            <SummaryStat label="উত্তর" value={toBn(answered)} />
-            <SummaryStat label="ভুল" value={toBn(answered - correct)} divider />
-            <SummaryStat label="নির্ভুলতা" value={`${toBn(accuracy)}%`} divider />
+            <SummaryStat label="Answered" value={formatNumber(answered)} />
+            <SummaryStat label="Wrong" value={formatNumber(answered - correct)} divider />
+            <SummaryStat label="Accuracy" value={`${formatNumber(accuracy)}%`} divider />
           </dl>
         </>
       ) : (
         <>
-          <p className="mt-3 text-[48px] leading-tight font-bold">{toBn(total)}</p>
-          <p className="text-[17px] text-secondary">টি প্রশ্নের উত্তর ও ব্যাখ্যা দেখেছেন</p>
+          <p className="mt-3 text-[48px] leading-tight font-bold">{formatNumber(total)}</p>
+          <p className="text-[17px] text-secondary">{total === 1 ? "question" : "questions"} reviewed with answers and explanations</p>
         </>
       )}
 
@@ -698,11 +708,11 @@ function SummaryCard({
         >
           {practice ? (
             <>
-              <ResetIcon className="size-5" /> আবার অনুশীলন করুন
+              <ResetIcon className="size-5" /> Practise again
             </>
           ) : (
             <>
-              <ChevronUpIcon className="size-5 stroke-3" /> প্রথম প্রশ্নে যান
+              <ChevronUpIcon className="size-5 stroke-3" /> Back to first question
             </>
           )}
         </button>
@@ -710,7 +720,7 @@ function SummaryCard({
           href="/reels"
           className="pressable inline-flex h-[50px] items-center justify-center rounded-full bg-fill text-[17px] font-bold text-tint"
         >
-          অন্য পরীক্ষা বেছে নিন
+          Choose another exam
         </AppLink>
       </div>
     </div>
@@ -728,7 +738,7 @@ function SummaryStat({ label, value, divider = false }: { label: string; value: 
 
 export function ReelsSkeleton() {
   return (
-    <main className={`fixed inset-0 flex flex-col justify-center bg-canvas ${SLIDE_PADDING}`} aria-busy="true" aria-label="লোড হচ্ছে">
+    <main className={`fixed inset-0 flex flex-col justify-center bg-canvas ${SLIDE_PADDING}`} aria-busy="true" aria-label="Loading">
       <div className="mx-auto w-full max-w-xl">
         <div className="flex justify-between">
           <Skeleton className="h-6 w-20 rounded-full" />

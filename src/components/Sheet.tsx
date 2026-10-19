@@ -37,7 +37,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="বন্ধ করুন" onClick={onClose} className="absolute inset-0 animate-backdrop-in bg-black/40" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 animate-backdrop-in bg-black/40" />
       <div
         className={`absolute inset-x-0 bottom-0 mx-auto flex max-w-lg max-h-[85dvh] animate-sheet-up flex-col rounded-t-[14px] bg-canvas shadow-2xl dark:bg-surface ${
           !dragging ? "transition-transform duration-300 ease-out" : ""
@@ -50,7 +50,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
             <span />
             <h2 className="text-[17px] font-semibold">{title}</h2>
             <button type="button" onClick={onClose} className="pressable justify-self-end text-[17px] font-semibold text-tint">
-              সম্পন্ন
+              Done
             </button>
           </div>
         </div>

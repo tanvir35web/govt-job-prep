@@ -29,15 +29,15 @@ export function AdminLoginForm() {
       }
       setError(
         res.status === 401
-          ? "ইউজারনেম বা পাসওয়ার্ড ভুল।"
+          ? "Incorrect username or password."
           : res.status === 429
-            ? "অনেকবার ভুল চেষ্টা হয়েছে। ১৫ মিনিট পর আবার চেষ্টা করুন।"
+            ? "Too many failed attempts. Try again in 15 minutes."
             : res.status === 503
-              ? "সার্ভারে অ্যাডমিন লগইন সেট করা নেই (.env-এ ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SESSION_SECRET দিন)।"
-              : "লগইন করা যায়নি। আবার চেষ্টা করুন।",
+              ? "Admin sign-in is not set up on the server (set ADMIN_USERNAME, ADMIN_PASSWORD and ADMIN_SESSION_SECRET in .env)."
+              : "Couldn't sign in. Try again.",
       );
     } catch {
-      setError("সার্ভারের সাথে যোগাযোগ করা যায়নি।");
+      setError("Couldn't reach the server.");
     }
     setSubmitting(false);
   }
@@ -52,8 +52,8 @@ export function AdminLoginForm() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-lg shadow-emerald-900/20">
             <GraduationCapIcon className="size-7" />
           </span>
-          <h1 className="mt-5 text-2xl font-bold">অ্যাডমিন লগইন</h1>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">পরীক্ষা আপলোড ও পরিচালনা করতে লগইন করুন</p>
+          <h1 className="mt-5 text-2xl font-bold">Admin Sign In</h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Sign in to upload and manage exams</p>
         </div>
 
         <form
@@ -66,7 +66,7 @@ export function AdminLoginForm() {
             </p>
           )}
           <label className="block text-sm font-medium">
-            ইউজারনেম
+            Username
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -78,7 +78,7 @@ export function AdminLoginForm() {
             />
           </label>
           <label className="block text-sm font-medium">
-            পাসওয়ার্ড
+            Password
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -93,7 +93,7 @@ export function AdminLoginForm() {
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute top-1/2 right-2 mt-0.75 -translate-y-1/2 rounded-lg px-2.5 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
               >
-                {showPassword ? "লুকান" : "দেখুন"}
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
           </label>
@@ -102,7 +102,7 @@ export function AdminLoginForm() {
             disabled={submitting}
             className="h-12 w-full rounded-xl bg-emerald-600 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {submitting ? "লগইন হচ্ছে..." : "লগইন"}
+            {submitting ? "Signing in..." : "Sign In"}
           </button>
         </form>
       </div>

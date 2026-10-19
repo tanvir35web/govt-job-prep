@@ -7,7 +7,7 @@ export function ErrorState({
   onRetry,
   showHomeLink = false,
   homeHref = "/",
-  homeLabel = "সব পরীক্ষা",
+  homeLabel = "All exams",
   offline = false,
 }: {
   title: string;
@@ -32,7 +32,7 @@ export function ErrorState({
             onClick={onRetry}
             className="pressable inline-flex h-[50px] items-center justify-center gap-2 rounded-[14px] bg-tint text-[17px] font-semibold text-white dark:text-black"
           >
-            <ResetIcon className="size-5" /> আবার চেষ্টা করুন
+            <ResetIcon className="size-5" /> Try again
           </button>
         )}
         {showHomeLink && (
