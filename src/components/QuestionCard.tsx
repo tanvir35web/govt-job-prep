@@ -10,11 +10,14 @@ export function QuestionCard({
   mode,
   selected,
   onSelect,
+  anchorId = `q-${q.question_no}`,
 }: {
   question: Question;
   mode: Mode;
   selected: string | undefined;
   onSelect: (option: string) => void;
+  /** Element id the question navigator scrolls to; set it where numbers repeat (a subject's topics). */
+  anchorId?: string;
 }) {
   const revealed = mode === "study" || selected !== undefined;
   const answeredCorrectly = selected === q.correct_answer;
@@ -22,7 +25,7 @@ export function QuestionCard({
   const twoColumns = q.options.every((o) => o.length <= 32);
 
   return (
-    <article id={`q-${q.question_no}`} className="scroll-mt-[max(1rem,env(safe-area-inset-top))] py-6">
+    <article id={anchorId} className="scroll-mt-[max(1rem,env(safe-area-inset-top))] py-6">
       <p className="text-[13px] text-secondary">
         <span className="font-semibold text-label tabular-nums">{formatNumber(q.question_no)}</span>
         <span aria-hidden="true" className="mx-1.5 text-tertiary">

@@ -79,6 +79,7 @@ const SUBJECT_ANSWERS_PREFIX = "subject-answers:";
 const REELS_POSITION_PREFIX = "reels-position:";
 const LAST_REEL_KEY = "reels-last";
 const RECENT_EXAMS_KEY = "exams-recent";
+const LAST_STUDY_KEY = "study-last";
 const RECENT_LIMIT = 10;
 
 /** Chosen option per question number. Shared by the exam page and Reels, so progress carries over. */
@@ -118,6 +119,26 @@ export function saveSubjectAnswers(slug: string, answers: SubjectAnswers) {
     localStorage.setItem(`${SUBJECT_ANSWERS_PREFIX}${slug}`, JSON.stringify(answers));
   } catch {
     // Storage unavailable (private mode etc.); progress just won't persist.
+  }
+}
+
+/** The topic last opened on the Study tab (an empty topic: every question in the subject), offered as "continue". */
+export type LastStudy = { subject: string; topic: string };
+
+export function loadLastStudy(): LastStudy | null {
+  try {
+    const parsed = JSON.parse(read(LAST_STUDY_KEY) ?? "null") as Partial<LastStudy> | null;
+    return typeof parsed?.subject === "string" && typeof parsed.topic === "string" ? { subject: parsed.subject, topic: parsed.topic } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastStudy(last: LastStudy) {
+  try {
+    localStorage.setItem(LAST_STUDY_KEY, JSON.stringify(last));
+  } catch {
+    // Not persisted; the Study tab just won't offer to continue.
   }
 }
 
@@ -173,7 +194,7 @@ export function clearAllAnswers(): number {
     const all = Object.keys(localStorage);
     const keys = all.filter((k) => k.startsWith(ANSWERS_PREFIX));
     const subjects = all.filter((k) => k.startsWith(SUBJECT_ANSWERS_PREFIX));
-    const reels = all.filter((k) => k.startsWith(REELS_POSITION_PREFIX) || k === LAST_REEL_KEY || k === RECENT_EXAMS_KEY);
+    const reels = all.filter((k) => k.startsWith(REELS_POSITION_PREFIX) || k === LAST_REEL_KEY || k === RECENT_EXAMS_KEY || k === LAST_STUDY_KEY);
     for (const k of [...keys, ...subjects, ...reels]) localStorage.removeItem(k);
     return keys.length;
   } catch {

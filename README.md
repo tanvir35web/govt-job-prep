@@ -16,6 +16,8 @@ npm run dev
 | ----- | ----------- |
 | `/` | Home tab. Exam list with search and organisation filter (calls `GET /api/exams`) |
 | `/exam` | Exam tab. Timed mock exam from random questions across every exam: choose marks (10–100, one per question), seconds per question (30–90) and subjects. No API of its own; it loads every exam through `GET /api/exams/{slug}` and drops duplicate questions. An exam in progress, the last settings and the last 10 results are kept in `localStorage`. |
+| `/study` | Study tab (calls `GET /api/subjects`). Overall progress, continue the last topic, search, a tile per subject. `?subject={slug}` shows one subject: its progress, a continue button and its topics (calls `GET /api/subjects/{slug}`). |
+| `/study/topic?subject={slug}&topic={name}` | One topic's questions, laid out like an exam page (practice and study modes, progress, question grid, previous and next topic). An empty `topic` shows every question in the subject. Answers are saved in the browser per subject. |
 | `/reels` | Reels tab. Placeholder for now |
 | `/settings` | Settings tab. Theme (system, light, dark), open exams in study mode, clear all answers, offline storage (save all, usage, clear), app update check, install status, version |
 | `/admin` | Admin panel (login at `/admin/login`). Paste or open exam JSON, check the preview, upload. Also lists and deletes exams. |

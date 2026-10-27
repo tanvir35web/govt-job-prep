@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { StudySkeleton, StudyView } from "@/components/StudyView";
+import { StudySkeleton, StudyView } from "@/components/study/StudyView";
 
-export const metadata: Metadata = { title: "Study by subject" };
+export const metadata: Metadata = { title: "Study" };
 
-// Outside the (tabs) group: a detail page reached from the "Study by subject" card on Home, with its own back link.
+// The Study tab: subjects, and one subject's topics (?subject=slug). Questions open on /study/topic.
 // StudyView reads the query string, so it sits in a Suspense boundary for prerendering.
 export default function StudyPage() {
   return (

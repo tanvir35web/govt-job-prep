@@ -15,6 +15,7 @@
   --ios-secondary: rgb(60 60 67 / 0.6);
   --ios-tertiary: rgb(60 60 67 / 0.3);
   --ios-bar: rgb(249 249 249 / 0.8);
+  --ios-glass: rgb(249 249 249 / 0.65);
   --ios-tint: #047857;
   --ios-green: #248a3d;
   --ios-red: #d70015;
@@ -32,6 +33,7 @@
   --ios-secondary: rgb(235 235 245 / 0.6);
   --ios-tertiary: rgb(235 235 245 / 0.3);
   --ios-bar: rgb(22 22 23 / 0.8);
+  --ios-glass: rgb(22 22 23 / 0.65);
   --ios-tint: #34d399;
   --ios-green: #30d158;
   --ios-red: #ff453a;
@@ -104,6 +106,14 @@
   background-color: var(--ios-bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* A clearer version of the bar material for the floating tab bar: more of the page shows through,
+   with a stronger blur so the labels stay readable over it. */
+@utility ios-glass {
+  background-color: var(--ios-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
 }
 
 /* A 0.5px hairline, as UIKit draws separators on Retina screens. */

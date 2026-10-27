@@ -1,6 +1,6 @@
 import { TabBar } from "@/components/TabBar";
 
-// Home, Reels and Settings share the floating tab bar; the bottom padding is its height (4rem) + a 1rem gap + its offset. Exam pages sit outside this group and use their own toolbar.
+// Home, Study, Reels, Exam and Settings share the floating tab bar; the bottom padding is its height (4rem) + a 1rem gap + its offset. Exam pages sit outside this group and use their own toolbar.
 export default function TabsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

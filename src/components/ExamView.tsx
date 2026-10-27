@@ -89,10 +89,12 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
     document.getElementById("questions")?.scrollIntoView({ block: "start" });
   };
 
-  const jumpTo = (questionNo: number) => {
+  const jumpTo = (id: string) => {
     setDetailsOpen(false);
-    document.getElementById(`q-${questionNo}`)?.scrollIntoView({ block: "start" });
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
   };
+
+  const navItems = visible.map((q) => ({ id: `q-${q.question_no}`, number: q.question_no, answer: answers[q.question_no], correct: q.correct_answer }));
 
   return (
     <>
@@ -145,13 +147,15 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
             <ProgressCard mode={mode} progress={progress} onReset={reset} />
             <div className="mt-8">
               <h2 className="text-[13px] font-semibold text-secondary">Go to question</h2>
-              <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-6" />
+              <QuestionNavigator items={navItems} mode={mode} onJump={jumpTo} className="mt-3 grid-cols-6" />
             </div>
           </aside>
         </div>
       </main>
 
       <BottomBar
+        backHref="/"
+        backLabel="Back to all exams"
         mode={mode}
         subjectLabel={subject === ALL ? "All subjects" : subject}
         progress={progress}
@@ -189,7 +193,7 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
           />
           <div className="mt-6 border-t border-separator pt-5">
             <h2 className="text-[13px] font-semibold text-secondary">Go to question</h2>
-            <QuestionNavigator questions={visible} mode={mode} answers={answers} onJump={jumpTo} className="mt-3 grid-cols-7 sm:grid-cols-10" />
+            <QuestionNavigator items={navItems} mode={mode} onJump={jumpTo} className="mt-3 grid-cols-7 sm:grid-cols-10" />
           </div>
         </Sheet>
       )}
@@ -197,7 +201,9 @@ function ExamContent({ slug, info, questions }: { slug: string; info: ExamInfo; 
   );
 }
 
-type Progress = { total: number; answered: number; correct: number; wrong: number };
+// The pieces below are shared with the Study topic page (components/study/TopicView.tsx).
+
+export type Progress = { total: number; answered: number; correct: number; wrong: number };
 
 function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; available: number; subjectCount: number }) {
   const hasSafeSource = /^https?:\/\//i.test(info.source_url);
@@ -250,7 +256,7 @@ function ExamHeader({ info, available, subjectCount }: { info: ExamInfo; availab
 }
 
 // Two text tabs with an underline under the selected one; the row's bottom border is the track.
-function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
+export function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const options: { value: Mode; label: string }[] = [
     { value: "practice", label: "Practice" },
     { value: "study", label: "Study" },
@@ -325,7 +331,7 @@ function ProgressBar({ progress }: { progress: Progress }) {
   );
 }
 
-function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progress; onReset: () => void }) {
+export function ProgressCard({ mode, progress, onReset }: { mode: Mode; progress: Progress; onReset: () => void }) {
   const accuracy = progress.answered ? Math.round((progress.correct / progress.answered) * 100) : 0;
 
   return (
@@ -364,36 +370,26 @@ function SmallStat({ label, value, className }: { label: string; value: number; 
   );
 }
 
-function QuestionNavigator({
-  questions,
-  mode,
-  answers,
-  onJump,
-  className,
-}: {
-  questions: Question[];
-  mode: Mode;
-  answers: Answers;
-  onJump: (questionNo: number) => void;
-  className: string;
-}) {
+/** One numbered button in the question grid: the element id it scrolls to, the number shown, and how it was answered. */
+export type NavItem = { id: string; number: number; answer: string | undefined; correct: string };
+
+export function QuestionNavigator({ items, mode, onJump, className }: { items: NavItem[]; mode: Mode; onJump: (id: string) => void; className: string }) {
   return (
     <div className={`grid gap-1 ${className}`}>
-      {questions.map((q) => {
-        const answer = answers[q.question_no];
+      {items.map((item) => {
         let tone = "text-secondary active:bg-fill";
-        if (mode === "practice" && answer !== undefined) {
-          tone = answer === q.correct_answer ? "bg-ios-green/12 text-ios-green" : "bg-ios-red/12 text-ios-red";
+        if (mode === "practice" && item.answer !== undefined) {
+          tone = item.answer === item.correct ? "bg-ios-green/12 text-ios-green" : "bg-ios-red/12 text-ios-red";
         }
         return (
           <button
-            key={q.question_no}
+            key={item.id}
             type="button"
-            onClick={() => onJump(q.question_no)}
-            aria-label={`Go to question ${formatNumber(q.question_no)}`}
+            onClick={() => onJump(item.id)}
+            aria-label={`Go to question ${formatNumber(item.number)}`}
             className={`pressable aspect-square rounded-full text-[14px] font-medium tabular-nums ${tone}`}
           >
-            {formatNumber(q.question_no)}
+            {formatNumber(item.number)}
           </button>
         );
       })}
@@ -404,12 +400,16 @@ function QuestionNavigator({
 // Phones only: a floating capsule above the home indicator, like the tab bar on the other pages. It holds
 // the back button and a summary of the current view (subject and mode); tapping the summary opens the
 // details sheet (mode, subject, progress, question list).
-function BottomBar({
+export function BottomBar({
+  backHref,
+  backLabel,
   mode,
   subjectLabel,
   progress,
   onOpenDetails,
 }: {
+  backHref: string;
+  backLabel: string;
   mode: Mode;
   subjectLabel: string;
   progress: Progress;
@@ -418,7 +418,7 @@ function BottomBar({
   return (
     <div className="px-safe pointer-events-none fixed inset-x-0 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 flex justify-center lg:hidden">
       <div className="ios-material pointer-events-auto flex w-full max-w-sm items-center gap-1 rounded-full p-1.5 shadow-[0_8px_32px_rgb(0_0_0/0.14),0_2px_6px_rgb(0_0_0/0.06)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.6)] dark:ring-white/10">
-        <AppLink href="/" aria-label="Back to all exams" className="pressable grid size-11 shrink-0 place-items-center rounded-full bg-fill text-tint">
+        <AppLink href={backHref} aria-label={backLabel} className="pressable grid size-11 shrink-0 place-items-center rounded-full bg-fill text-tint">
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
         </AppLink>
 
@@ -442,7 +442,7 @@ function BottomBar({
 }
 
 // Segmented control for the details sheet: a sliding thumb under the selected mode.
-function ModeSwitch({ mode, onChange, className = "" }: { mode: Mode; onChange: (mode: Mode) => void; className?: string }) {
+export function ModeSwitch({ mode, onChange, className = "" }: { mode: Mode; onChange: (mode: Mode) => void; className?: string }) {
   const options: { value: Mode; label: string }[] = [
     { value: "practice", label: "Practice" },
     { value: "study", label: "Study" },
@@ -471,7 +471,7 @@ function ModeSwitch({ mode, onChange, className = "" }: { mode: Mode; onChange: 
   );
 }
 
-function CompletionCard({ progress, onReset }: { progress: Progress; onReset: () => void }) {
+export function CompletionCard({ progress, onReset, children }: { progress: Progress; onReset: () => void; children?: React.ReactNode }) {
   const accuracy = Math.round((progress.correct / progress.total) * 100);
   const message = accuracy >= 80 ? "Excellent! You're well prepared." : accuracy >= 50 ? "Well done! A bit more practice will help." : "Don't give up. Try again.";
 
@@ -490,6 +490,7 @@ function CompletionCard({ progress, onReset }: { progress: Progress; onReset: ()
       >
         <ResetIcon className="size-4.5" /> Practise again
       </button>
+      {children}
     </div>
   );
 }

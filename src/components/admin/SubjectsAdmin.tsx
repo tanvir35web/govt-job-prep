@@ -455,7 +455,7 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
                     {s.topics.map((t) => (
                       <li key={t.name} className="flex items-center gap-2">
                         <Link
-                          href={`/study?subject=${encodeURIComponent(s.slug)}&topic=${encodeURIComponent(t.name)}`}
+                          href={`/study/topic?subject=${encodeURIComponent(s.slug)}&topic=${encodeURIComponent(t.name)}`}
                           target="_blank"
                           className="min-w-0 flex-1 truncate text-xs hover:text-emerald-700 dark:hover:text-emerald-400"
                         >

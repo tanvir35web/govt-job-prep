@@ -16,7 +16,7 @@ const STATIC_LIMIT = 400;
 
 const OFFLINE_URL = "/offline.html";
 // The tab pages, so every tab opens offline from the first launch.
-const PRECACHE = ["/", "/exam", "/reels", "/settings", "/progress", "/study", OFFLINE_URL];
+const PRECACHE = ["/", "/exam", "/reels", "/settings", "/progress", "/study", "/study/topic", OFFLINE_URL];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
