@@ -1,9 +1,20 @@
 // Validates pasted subject JSON. Shared by the admin UI (instant feedback) and the
 // admin upload API (authoritative check), so it must stay free of server-only imports.
+//
+// Upload format: one lecture sheet per object, its topic given once in subject_info. Each is stored as is,
+// one database document per topic (src/models/Subject.ts):
+//   { "subject_info": { "name": "সাধারণ জ্ঞান", "topic": "Parts of Speech" }, "questions": [{ "question_no": 1, ... }] }
+// An array of these uploads several topics of one subject at once (the whole-subject edit uses it).
 import { shortHash, slugify } from "./exam-validation";
-import type { SubjectInfo, SubjectQuestion, TopicSummary } from "./types";
+import type { SubjectInfo, SubjectQuestion, SubjectTopic, TopicSummary } from "./types";
 
-export type SubjectPayload = { subject_info: SubjectInfo; questions: SubjectQuestion[] };
+export type SubjectPayload = { subject_info: SubjectInfo; topics: SubjectTopic[] };
+
+/** One lecture sheet in the upload format. */
+export type TopicFile = {
+  subject_info: { name: string; topic: string; description?: string };
+  questions: SubjectTopic["questions"];
+};
 
 export type SubjectValidationResult =
   | { ok: true; data: SubjectPayload; warnings: string[] }
@@ -19,36 +30,62 @@ export function validateSubjectPayload(input: unknown): SubjectValidationResult 
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!isObject(input)) return { ok: false, errors: ["The JSON must be an object ({ ... })."] };
+  const blocks = Array.isArray(input) ? input : [input];
+  if (blocks.length === 0) return { ok: false, errors: ["The JSON array is empty."] };
+  if (!blocks.every(isObject)) return { ok: false, errors: ["The JSON must be an object ({ ... }) or an array of them."] };
 
-  const info = input.subject_info;
-  if (!isObject(info)) {
-    errors.push("`subject_info` is missing or is not an object.");
-  } else {
-    if (!isNonEmptyString(info.name)) errors.push("subject_info.name is empty or not text.");
-    if (info.description !== undefined && typeof info.description !== "string") errors.push("subject_info.description must be text.");
-  }
+  // Each lecture sheet numbers its questions from 1, so numbers only need to be unique within a topic.
+  const seen = new Set<string>();
+  // Topics in first-seen order; the same topic in two objects is one topic.
+  const topicsOut = new Map<string, SubjectTopic["questions"]>();
+  let name = "";
+  let description = "";
 
-  const questions = input.questions;
-  if (!Array.isArray(questions) || questions.length === 0) {
-    errors.push("`questions` must be a non-empty array.");
-  } else {
-    // Each lecture sheet numbers its questions from 1, so numbers only need to be unique within a topic.
-    const seen = new Set<string>();
+  blocks.forEach((block, b) => {
+    if (errors.length >= MAX_ERRORS) return;
+    // In an array, every message says which object it is about.
+    const where = blocks.length > 1 ? `[${b}] ` : "";
+
+    const info = block.subject_info;
+    if (!isObject(info)) {
+      errors.push(`${where}\`subject_info\` is missing or is not an object.`);
+      return;
+    }
+    if (!isNonEmptyString(info.name)) errors.push(`${where}subject_info.name is empty or not text.`);
+    else if (!name) name = info.name.trim();
+    else if (info.name.trim() !== name) errors.push(`${where}subject_info.name "${info.name.trim()}" differs from "${name}". Upload one subject at a time.`);
+    if (info.description !== undefined && typeof info.description !== "string") errors.push(`${where}subject_info.description must be text.`);
+    else if (!description && typeof info.description === "string") description = info.description.trim();
+
+    // The topic list is built from this field, so every lecture sheet needs one.
+    if (!isNonEmptyString(info.topic)) {
+      errors.push(`${where}subject_info.topic is empty or not text.`);
+      return;
+    }
+    const topic = cleanTopic(info.topic);
+
+    const questions = block.questions;
+    if (!Array.isArray(questions) || questions.length === 0) {
+      errors.push(`${where}\`questions\` must be a non-empty array.`);
+      return;
+    }
     questions.forEach((q, i) => {
       if (errors.length >= MAX_ERRORS) return;
-      const at = `questions[${i}]`;
+      const at = `${where}questions[${i}]`;
       if (!isObject(q)) {
         errors.push(`${at} is not an object.`);
         return;
       }
-      const label = isPositiveInt(q.question_no) ? `Question ${q.question_no}` : at;
-      // The topic list is built from this field, so every question needs one.
-      if (!isNonEmptyString(q.topic)) errors.push(`${label}: topic is empty.`);
+      const label = isPositiveInt(q.question_no) ? `${where}Question ${q.question_no}` : at;
+
+      if (q.topic !== undefined && (!isNonEmptyString(q.topic) || cleanTopic(q.topic) !== topic)) {
+        errors.push(`${label}: topic differs from subject_info.topic. Remove it from the question.`);
+      }
+
       if (!isPositiveInt(q.question_no)) errors.push(`${at}.question_no must be a positive integer.`);
-      else if (isNonEmptyString(q.topic)) {
-        const key = subjectQuestionKey({ topic: cleanTopic(q.topic), question_no: q.question_no });
-        if (seen.has(key)) errors.push(`${label}: question_no is duplicated in topic "${cleanTopic(q.topic)}".`);
+      else {
+        const key = subjectQuestionKey({ topic, question_no: q.question_no });
+        if (seen.has(key)) errors.push(`${label}: question_no is duplicated in topic "${topic}".`);
         else seen.add(key);
       }
 
@@ -61,31 +98,49 @@ export function validateSubjectPayload(input: unknown): SubjectValidationResult 
         if (!isNonEmptyString(q.correct_answer)) errors.push(`${label}: correct_answer is empty.`);
         else if (!q.options.includes(q.correct_answer)) errors.push(`${label}: correct_answer does not exactly match any of the options.`);
       }
-    });
-  }
 
-  if (errors.length > 0) return { ok: false, errors: errors.slice(0, MAX_ERRORS) };
-
-  // Re-build the objects so only known fields are stored.
-  const i = info as Record<string, unknown>;
-  const data: SubjectPayload = {
-    subject_info: {
-      name: String(i.name).trim(),
-      description: typeof i.description === "string" ? i.description.trim() : "",
-    },
-    questions: groupByTopic(
-      (questions as Record<string, unknown>[]).map((q) => ({
+      // Re-build the object so only known fields are stored. Discarded if anything above failed.
+      if (!topicsOut.has(topic)) topicsOut.set(topic, []);
+      topicsOut.get(topic)!.push({
         question_no: q.question_no as number,
-        topic: cleanTopic(String(q.topic)),
         question: String(q.question).trim(),
         options: q.options as string[],
         correct_answer: q.correct_answer as string,
         explanation: typeof q.explanation === "string" ? q.explanation.trim() : "",
-      })),
-    ),
-  };
+      });
+    });
+  });
 
-  return { ok: true, data, warnings };
+  if (errors.length > 0) return { ok: false, errors: errors.slice(0, MAX_ERRORS) };
+
+  const topics = [...topicsOut].map(([topic, qs]) => ({ name: topic, questions: qs.sort((a, b) => a.question_no - b.question_no) }));
+  return { ok: true, data: { subject_info: { name, description }, topics }, warnings };
+}
+
+/** A subject's name and description from its topic documents (in topic order): the first description given wins. */
+export function subjectInfoOf(files: { subject_info: { name: string; description?: string | null } }[]): SubjectInfo {
+  return {
+    name: files[0]?.subject_info.name ?? "",
+    description: files.find((f) => f.subject_info.description)?.subject_info.description ?? "",
+  };
+}
+
+/** Every question with its topic beside it, in topic order: the shape the public subject API returns. */
+export function flattenTopics(topics: SubjectTopic[]): SubjectQuestion[] {
+  return topics.flatMap((t) =>
+    t.questions.map((q) => ({
+      question_no: q.question_no,
+      topic: t.name,
+      question: q.question,
+      options: q.options,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation,
+    })),
+  );
+}
+
+export function countQuestions(topics: { questions: readonly unknown[] }[]) {
+  return topics.reduce((n, t) => n + t.questions.length, 0);
 }
 
 // "বাস্তব সংখ্যা  - ২" and "বাস্তব সংখ্যা - ২" are the same topic.
@@ -98,30 +153,9 @@ export function subjectQuestionKey(q: Pick<SubjectQuestion, "topic" | "question_
   return `${q.topic}#${q.question_no}`;
 }
 
-/** Topics in first-seen order, questions by number within each topic. */
-function groupByTopic(questions: SubjectQuestion[]): SubjectQuestion[] {
-  const order = new Map<string, number>();
-  for (const q of questions) if (!order.has(q.topic)) order.set(q.topic, order.size);
-  return [...questions].sort((a, b) => order.get(a.topic)! - order.get(b.topic)! || a.question_no - b.question_no);
-}
-
-/**
- * Adds an uploaded file to a subject: every topic in the upload replaces that topic's questions,
- * other topics stay as they are. Replaced topics keep their place in the list; new ones go at the end.
- */
-export function mergeSubjectQuestions(existing: SubjectQuestion[], incoming: SubjectQuestion[]): SubjectQuestion[] {
-  const incomingTopics = new Set(incoming.map((q) => q.topic));
-  const order = [...new Set([...existing.map((q) => q.topic), ...incoming.map((q) => q.topic)])];
-  const rank = new Map(order.map((t, i) => [t, i]));
-  const kept = existing.filter((q) => !incomingTopics.has(q.topic));
-  return [...kept, ...incoming].sort((a, b) => rank.get(a.topic)! - rank.get(b.topic)! || a.question_no - b.question_no);
-}
-
-/** Topics in the order they first appear in the questions, with a count each. */
-export function buildTopics(questions: Pick<SubjectQuestion, "topic">[]): TopicSummary[] {
-  const counts = new Map<string, number>();
-  for (const q of questions) counts.set(q.topic, (counts.get(q.topic) ?? 0) + 1);
-  return [...counts.entries()].map(([name, total_questions]) => ({ name, total_questions }));
+/** The topic list with a question count each. */
+export function buildTopics(topics: { name: string; questions: readonly unknown[] }[]): TopicSummary[] {
+  return topics.map((t) => ({ name: t.name, total_questions: t.questions.length }));
 }
 
 // English slugs for the usual job-exam subjects. Keys are compared without spaces.

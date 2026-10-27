@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { failure, success } from "@/lib/api-response";
-import { buildTopics } from "@/lib/subject-validation";
-import { Subject } from "@/models/Subject";
+import { buildTopics, flattenTopics, subjectInfoOf } from "@/lib/subject-validation";
+import { Topic } from "@/models/Subject";
 
 // GET /api/subjects/[slug]
 // Returns subject_info, the topic list and every question in the subject.
@@ -12,19 +12,20 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/subject
 
   try {
     await connectDB();
-    const subject = await Subject.findOne({ slug }, { _id: 0, subject_info: 1, questions: 1 }).lean();
+    const docs = await Topic.find({ slug }, { _id: 0, subject_info: 1, questions: 1 }).sort({ createdAt: 1 }).lean();
 
-    if (!subject) {
+    if (docs.length === 0) {
       return failure(`Subject '${slug}' not found.`, 404);
     }
 
-    // Stored grouped by topic, numbers ascending within each; numbers restart in every topic.
-    const questions = subject.questions;
+    // Stored one document per topic; the response keeps one flat list with each question's topic beside it.
+    const topics = docs.map((d) => ({ name: d.subject_info.topic, questions: d.questions }));
+    const questions = flattenTopics(topics);
 
     return success(`All ${questions.length} questions retrieved successfully.`, {
       slug,
-      subject_info: subject.subject_info,
-      topics: buildTopics(questions),
+      subject_info: subjectInfoOf(docs),
+      topics: buildTopics(topics),
       questions,
     });
   } catch (err) {

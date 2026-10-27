@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { formatNumber, pluralize } from "@/lib/format";
 import { SLUG_PATTERN } from "@/lib/exam-validation";
-import { type SubjectValidationResult, buildTopics, deriveSubjectSlug, validateSubjectPayload } from "@/lib/subject-validation";
-import type { SubjectInfo, SubjectListResponse, SubjectQuestion } from "@/lib/types";
+import { type SubjectValidationResult, type TopicFile, buildTopics, countQuestions, deriveSubjectSlug, validateSubjectPayload } from "@/lib/subject-validation";
+import type { SubjectListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
 import { JsonEditor, jsonErrorLine } from "./JsonEditor";
 
-// The Subjects tab of the admin panel: one JSON file per subject, every question tagged with a topic.
-// The Study page builds its topic list from those tags.
+// The Subjects tab of the admin panel: one JSON file per topic (lecture sheet), the topic given in subject_info,
+// or an array of those for several topics. The Study page builds its topic list from the questions' topics.
 
 type Parsed = { kind: "empty" } | { kind: "json-error"; message: string } | { kind: "parsed"; raw: unknown; result: SubjectValidationResult };
 
@@ -22,13 +22,12 @@ type Notice =
 
 const SAMPLE = `{
   "subject_info": {
-    "name": "বাংলা",
-    "description": "..."
+    "name": "সাধারণ জ্ঞান",
+    "topic": "Parts of Speech"
   },
   "questions": [
     {
       "question_no": 1,
-      "topic": "সন্ধি",
       "question": "...",
       "options": ["...", "...", "...", "..."],
       "correct_answer": "...",
@@ -68,7 +67,7 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
   const slugValid = SLUG_PATTERN.test(slug) && slug.length <= 120;
   const target = existing.find((s) => s.slug === slug);
   const willOverwrite = target !== undefined;
-  const topics = useMemo(() => (valid ? buildTopics(valid.data.questions) : []), [valid]);
+  const topics = useMemo(() => (valid ? buildTopics(valid.data.topics) : []), [valid]);
   // Questions already saved per topic in the target subject: an uploaded topic with a count here replaces them.
   const savedCounts = new Map(target?.topics.map((t) => [t.name, t.total_questions]) ?? []);
   // The topic being edited is expected to be overwritten, so it needs no extra warning.
@@ -86,13 +85,14 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
     if (text.trim() && !window.confirm("The editor has unsaved JSON. Replace it?")) return;
     const res = await fetch(`/api/admin/subjects/${encodeURIComponent(subjectSlug)}`);
     if (onUnauthorised(res)) return;
-    const body = (await res.json().catch(() => null)) as { subject_info: SubjectInfo; questions: SubjectQuestion[] } | null;
+    const body = (await res.json().catch(() => null)) as { files: TopicFile[] } | null;
     if (!res.ok || !body) {
       window.alert("Couldn't load the subject. Try again.");
       return;
     }
-    const questions = topic === null ? body.questions : body.questions.filter((q) => q.topic === topic);
-    setText(JSON.stringify({ subject_info: body.subject_info, questions }, null, 2));
+    // Topics are stored in the upload format, so they load into the editor as they are.
+    const files = topic === null ? body.files : body.files.filter((f) => f.subject_info.topic === topic);
+    setText(JSON.stringify(files.length === 1 ? files[0] : files, null, 2));
     setSlugOverride(subjectSlug);
     // Editing the whole subject saves it as-is, so a topic deleted from the JSON is deleted from the subject.
     setReplaceAll(topic === null);
@@ -315,7 +315,7 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
               <h3 className="mt-2 text-lg leading-snug font-semibold break-words">{valid.data.subject_info.name}</h3>
               {valid.data.subject_info.description && <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{valid.data.subject_info.description}</p>}
               <p className="mt-3 text-sm">
-                <span className="font-semibold">{pluralize(valid.data.questions.length, "question")}</span>
+                <span className="font-semibold">{pluralize(countQuestions(valid.data.topics), "question")}</span>
                 <span className="text-stone-500 dark:text-stone-400"> in {pluralize(topics.length, "topic")}</span>
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">

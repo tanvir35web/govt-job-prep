@@ -48,8 +48,11 @@ export type SubjectInfo = {
   description: string;
 };
 
-/** Every question in a subject file has its own topic; the topic list is built from them. */
+/** A question as the subject API returns it, with its topic beside it. */
 export type SubjectQuestion = Omit<Question, "subject">;
+
+/** A topic (lecture sheet): its name and its questions. */
+export type SubjectTopic = { name: string; questions: Omit<SubjectQuestion, "topic">[] };
 
 export type TopicSummary = { name: string; total_questions: number };
 
