@@ -131,7 +131,7 @@ export function slugify(value: string): string {
     .slice(0, 120);
 }
 
-function shortHash(value: string): string {
+export function shortHash(value: string): string {
   let h = 5381;
   for (let i = 0; i < value.length; i++) h = ((h << 5) + h + value.charCodeAt(i)) >>> 0;
   return h.toString(36);

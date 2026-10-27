@@ -3,7 +3,7 @@
 // Caches
 //   static-v1  hashed build assets (/_next/static), icons, fonts. Cache-first; never change once built.
 //   pages-v1   HTML documents ("/", "/exams/{slug}", "/reels/{slug}"). Network-first, cached copy when offline.
-//   api-v1     /api/exams responses. Exam detail: stale-while-revalidate. Exam list: network-first.
+//   api-v1     /api/exams and /api/subjects responses. Detail: stale-while-revalidate. List: network-first.
 //
 // Bump a cache's version only when its format changes: a bump throws away saved questions.
 // /admin and /api/admin are never cached.
@@ -16,7 +16,7 @@ const STATIC_LIMIT = 400;
 
 const OFFLINE_URL = "/offline.html";
 // The tab pages, so every tab opens offline from the first launch.
-const PRECACHE = ["/", "/exam", "/reels", "/settings", "/progress", OFFLINE_URL];
+const PRECACHE = ["/", "/exam", "/reels", "/settings", "/progress", "/study", OFFLINE_URL];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -72,6 +72,17 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname === "/api/exams") {
+    event.respondWith(networkFirst(request, API_CACHE));
+    return;
+  }
+
+  // Subjects for the Study page: same strategies as exams.
+  if (url.pathname.startsWith("/api/subjects/")) {
+    event.respondWith(staleWhileRevalidate(event));
+    return;
+  }
+
+  if (url.pathname === "/api/subjects") {
     event.respondWith(networkFirst(request, API_CACHE));
   }
 });

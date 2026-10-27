@@ -75,6 +75,7 @@ export function applyTheme(theme: Theme) {
 export const defaultModeSetting = setting<Mode>("default-mode", ["practice", "study"] as const, "practice");
 
 const ANSWERS_PREFIX = "exam-answers:";
+const SUBJECT_ANSWERS_PREFIX = "subject-answers:";
 const REELS_POSITION_PREFIX = "reels-position:";
 const LAST_REEL_KEY = "reels-last";
 const RECENT_EXAMS_KEY = "exams-recent";
@@ -95,6 +96,26 @@ export function loadAnswers(slug: string): Answers {
 export function saveAnswers(slug: string, answers: Answers) {
   try {
     localStorage.setItem(`${ANSWERS_PREFIX}${slug}`, JSON.stringify(answers));
+  } catch {
+    // Storage unavailable (private mode etc.); progress just won't persist.
+  }
+}
+
+/** Chosen option per question in a subject on the Study page, keyed by subjectQuestionKey (topic and number). */
+export type SubjectAnswers = Record<string, string>;
+
+export function loadSubjectAnswers(slug: string): SubjectAnswers {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(`${SUBJECT_ANSWERS_PREFIX}${slug}`) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as SubjectAnswers) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveSubjectAnswers(slug: string, answers: SubjectAnswers) {
+  try {
+    localStorage.setItem(`${SUBJECT_ANSWERS_PREFIX}${slug}`, JSON.stringify(answers));
   } catch {
     // Storage unavailable (private mode etc.); progress just won't persist.
   }
@@ -146,13 +167,14 @@ export function touchRecentExam(slug: string) {
   }
 }
 
-/** Removes saved answers (and Reels positions) for every exam. Returns how many exams had progress. */
+/** Removes saved answers (and Reels positions) for every exam and subject. Returns how many exams had progress. */
 export function clearAllAnswers(): number {
   try {
     const all = Object.keys(localStorage);
     const keys = all.filter((k) => k.startsWith(ANSWERS_PREFIX));
+    const subjects = all.filter((k) => k.startsWith(SUBJECT_ANSWERS_PREFIX));
     const reels = all.filter((k) => k.startsWith(REELS_POSITION_PREFIX) || k === LAST_REEL_KEY || k === RECENT_EXAMS_KEY);
-    for (const k of [...keys, ...reels]) localStorage.removeItem(k);
+    for (const k of [...keys, ...subjects, ...reels]) localStorage.removeItem(k);
     return keys.length;
   } catch {
     return 0;

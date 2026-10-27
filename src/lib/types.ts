@@ -40,3 +40,39 @@ export type ExamDetailResponse = {
   exam_info: ExamInfo;
   questions: Question[];
 };
+
+// ---- Subject-wise study (/api/subjects), uploaded separately from exams.
+
+export type SubjectInfo = {
+  name: string;
+  description: string;
+};
+
+/** Every question in a subject file has its own topic; the topic list is built from them. */
+export type SubjectQuestion = Omit<Question, "subject">;
+
+export type TopicSummary = { name: string; total_questions: number };
+
+export type SubjectListItem = {
+  slug: string;
+  subject_info: SubjectInfo;
+  total_questions: number;
+  topics: TopicSummary[];
+};
+
+export type SubjectListResponse = {
+  status: "success";
+  code: number;
+  message: string;
+  subjects: SubjectListItem[];
+};
+
+export type SubjectDetailResponse = {
+  status: "success";
+  code: number;
+  message: string;
+  slug: string;
+  subject_info: SubjectInfo;
+  topics: TopicSummary[];
+  questions: SubjectQuestion[];
+};

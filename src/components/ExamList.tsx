@@ -9,7 +9,7 @@ import { loadAnswers, loadRecentExams } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
-import { CheckIcon, ChevronRightIcon, CircleCheckIcon, ExamPaperIcon, SearchIcon, XIcon } from "./icons";
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, CircleCheckIcon, ExamPaperIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
 import { Ring } from "./Ring";
 import { ErrorState, Skeleton } from "./StatusViews";
@@ -117,6 +117,10 @@ export function ExamList() {
                   </ul>
                 </section>
               )}
+              <section className="mt-7" aria-label="Study by subject">
+                <SectionHeader title="Study" />
+                <StudyCard />
+              </section>
             </>
           )}
 
@@ -311,6 +315,27 @@ function ContinueCard({ exam, progress, unavailable }: RowProps) {
           <div className={`h-full rounded-full ${tone.solid}`} style={{ width: `${pct}%` }} />
         </div>
       </div>
+    </AppLink>
+  );
+}
+
+// ---- Study
+
+// Opens the Study page: subject files from the admin panel, each split into topics.
+function StudyCard() {
+  return (
+    <AppLink
+      href="/study"
+      className="flex items-center gap-3.5 rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 transition-transform active:scale-[0.99] dark:ring-white/10"
+    >
+      <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-xl bg-tint/12 text-tint">
+        <BookOpenIcon className="size-5.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[16px] leading-tight font-semibold">Study by subject</p>
+        <p className="mt-0.5 text-[14px] text-secondary">Practise questions subject by subject, topic by topic</p>
+      </div>
+      <ChevronRightIcon className="size-5 shrink-0 stroke-[2.5] text-tertiary" />
     </AppLink>
   );
 }
