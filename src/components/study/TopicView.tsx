@@ -15,6 +15,7 @@ import { type Mode, QuestionCard } from "../QuestionCard";
 import { Sheet } from "../Sheet";
 import { ErrorState } from "../StatusViews";
 import { studyHref, topicHref } from "./links";
+import { ReelsLink } from "./StudyReels";
 
 // The questions of one topic (/study/topic?subject=slug&topic=Name), or of the whole subject when the topic
 // is empty. Laid out like an exam page: questions in a list, a progress sidebar on wide screens, and on
@@ -120,10 +121,13 @@ function TopicContent({ slug, topic, data }: { slug: string; topic: string; data
                 <OfflineBadge className="shrink-0" />
               </p>
               <h1 className="mt-1 text-[26px] leading-tight font-bold tracking-tight sm:text-[32px]">{title}</h1>
-              <p className="mt-2 text-[14px] text-secondary">
-                {pluralize(questions.length, "question")}
-                {allTopics ? ` · ${pluralize(topics.length, "topic")}` : ` · Topic ${formatNumber(index + 1)} of ${formatNumber(topics.length)}`}
-              </p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-[14px] text-secondary">
+                  {pluralize(questions.length, "question")}
+                  {allTopics ? ` · ${pluralize(topics.length, "topic")}` : ` · Topic ${formatNumber(index + 1)} of ${formatNumber(topics.length)}`}
+                </p>
+                {questions.length > 0 && <ReelsLink slug={slug} topic={topic} />}
+              </div>
             </header>
 
             {/* Desktop only; on phones the mode switch is in the details sheet. */}

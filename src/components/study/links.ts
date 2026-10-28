@@ -8,6 +8,9 @@ export const studyHref = (subject?: string) => (subject ? `/study?subject=${enco
 
 export const topicHref = (subject: string, topic: string) => `/study/topic?${new URLSearchParams({ subject, topic })}`;
 
+/** The same questions as topicHref, one per screen in the Reels feed. */
+export const topicReelsHref = (subject: string, topic: string) => `/study/reels?${new URLSearchParams({ subject, topic })}`;
+
 /** Answered questions per topic, counted from the saved answers' keys ("topic#number"; a topic may contain "#"). */
 export function answeredByTopic(answers: SubjectAnswers): Map<string, number> {
   const counts = new Map<string, number>();

@@ -29,7 +29,7 @@ import { ErrorState, Skeleton } from "./StatusViews";
 
 // Reels: one question per screen in a vertical feed that snaps to each question, like short videos.
 // Each slide is full-bleed with a soft wash of its subject's colour over the theme background; text uses the theme colours.
-// Answers are shared with the exam page, so progress made in either place shows in both.
+// Answers are shared with the exam page (or, for a subject, the topic page), so progress made in either place shows in both.
 
 export function ReelsView({ slug }: { slug: string }) {
   const { state, retry } = useApi<ExamDetailResponse>(`/api/exams/${encodeURIComponent(slug)}`);
@@ -70,8 +70,54 @@ export function ReelsView({ slug }: { slug: string }) {
     );
   }
 
-  return <ReelsFeed slug={slug} info={state.data.exam_info} questions={state.data.questions} />;
+  return <ExamReels slug={slug} info={state.data.exam_info} questions={state.data.questions} />;
 }
+
+// An exam's questions in the feed. Answers are keyed by question number, as on the exam page.
+function ExamReels({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
+  // Only rendered on the client after the fetch resolves, so reading localStorage here is safe.
+  const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
+
+  useEffect(() => saveAnswers(slug, answers), [slug, answers]);
+  useEffect(() => saveLastReel(slug), [slug]);
+
+  return (
+    <ReelsFeed
+      title={info.exam_title}
+      context={info.organization}
+      questions={questions}
+      selected={questions.map((q) => answers[q.question_no])}
+      onSelect={(i, option) => setAnswers((prev) => ({ ...prev, [questions[i].question_no]: option }))}
+      onClear={() => setAnswers({})}
+      positionKey={slug}
+      groupBy="subject"
+      backHref="/reels"
+      backLabel="Back to all reels"
+      exitLabel="Choose another exam"
+    />
+  );
+}
+
+export type ReelsFeedProps = {
+  title: string;
+  /** Shown under the title when no group is current (the results slide), and its hue colours that slide. */
+  context: string;
+  /** subject and topic show above each question; the subject's hue tints its slides. */
+  questions: Question[];
+  /** The saved answer for each question, in the same order. */
+  selected: (string | undefined)[];
+  onSelect: (index: number, option: string) => void;
+  /** Clears the answers of every question in the feed. */
+  onClear: () => void;
+  /** Where the last question shown is remembered. */
+  positionKey: string;
+  /** What the jump sheet groups questions by: an exam's subjects, or a subject's topics. */
+  groupBy: "subject" | "topic";
+  backHref: string;
+  backLabel: string;
+  /** The results slide's link back to backHref. */
+  exitLabel: string;
+};
 
 let fullscreenExitTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -82,20 +128,30 @@ function scrollBehavior(): ScrollBehavior {
 // Equal side padding keeps the card centred. The top clears the top bar; on phones the bottom clears the action bar.
 const SLIDE_PADDING = "px-safe pt-[calc(6rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(2rem+env(safe-area-inset-bottom))]";
 
-function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; questions: Question[] }) {
+// The feed itself, for an exam (above) or a subject's topics (study/StudyReels). Rendered only on the client,
+// with at least one question.
+export function ReelsFeed({
+  title,
+  context,
+  questions,
+  selected,
+  onSelect,
+  onClear,
+  positionKey,
+  groupBy,
+  backHref,
+  backLabel,
+  exitLabel,
+}: ReelsFeedProps) {
   const [mode, setMode] = useState<Mode>(defaultModeSetting.get);
-  // Only rendered on the client after the fetch resolves, so reading localStorage here is safe.
-  const [answers, setAnswers] = useState<Answers>(() => loadAnswers(slug));
-  const [current, setCurrent] = useState(() => Math.min(loadReelsPosition(slug), questions.length - 1));
+  const [current, setCurrent] = useState(() => Math.min(loadReelsPosition(positionKey), questions.length - 1));
   const [toast, setToast] = useState<string | null>(null);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const slideRefs = useRef<(HTMLElement | null)[]>([]);
   // The slide count includes the summary slide after the last question.
   const slideCount = questions.length + 1;
 
-  useEffect(() => saveAnswers(slug, answers), [slug, answers]);
-  useEffect(() => saveLastReel(slug), [slug]);
-  useEffect(() => saveReelsPosition(slug, Math.min(current, questions.length - 1)), [slug, current, questions.length]);
+  useEffect(() => saveReelsPosition(positionKey, Math.min(current, questions.length - 1)), [positionKey, current, questions.length]);
 
   useEffect(() => {
     if (!toast) return;
@@ -158,10 +214,10 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     return () => window.removeEventListener("keydown", onKey);
   }, [current, goTo]);
 
-  const answered = questions.filter((q) => answers[q.question_no] !== undefined).length;
-  const correct = questions.filter((q) => answers[q.question_no] === q.correct_answer).length;
+  const answered = selected.filter((s) => s !== undefined).length;
+  const correct = questions.filter((q, i) => selected[i] === q.correct_answer).length;
   const onSummary = current >= questions.length;
-  const activeName = onSummary ? info.organization : questions[current].subject;
+  const activeName = onSummary ? context : questions[current].subject;
 
   // The feed's background is the page's own background: the theme colour tinted with the current
   // subject's hue. Being the body background, the browser paints it edge to edge, under its translucent
@@ -192,27 +248,26 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
     };
   }, []);
 
-  const select = (questionNo: number, option: string) => setAnswers((prev) => ({ ...prev, [questionNo]: option }));
-
   const reset = () => {
     if (answered === 0) return goTo(0);
     if (window.confirm("This will clear all your answers. Continue?")) {
-      setAnswers({});
+      onClear();
       goTo(0);
     }
   };
 
-  // Subjects in the order they first appear, with the slide index of each of their questions.
+  // Groups (subjects or topics) in the order they first appear, with the slide index of each of their questions.
   const subjects = useMemo(() => {
     const map = new Map<string, number[]>();
-    questions.forEach((q, i) => map.set(q.subject, [...(map.get(q.subject) ?? []), i]));
+    questions.forEach((q, i) => map.set(q[groupBy], [...(map.get(q[groupBy]) ?? []), i]));
     return [...map.entries()].map(([name, indices]) => ({ name, indices }));
-  }, [questions]);
-  const currentSubject = onSummary ? null : questions[current].subject;
+  }, [questions, groupBy]);
+  const currentSubject = onSummary ? null : questions[current][groupBy];
+  const groupNoun = groupBy === "subject" ? "Subjects" : "Topics";
 
-  // Lands on the subject's first unanswered question, or its first question once all are answered.
+  // Lands on the group's first unanswered question, or its first question once all are answered.
   const jumpToSubject = (indices: number[]) => {
-    const target = indices.find((i) => answers[questions[i].question_no] === undefined) ?? indices[0];
+    const target = indices.find((i) => selected[i] === undefined) ?? indices[0];
     setSubjectsOpen(false);
     goTo(target);
   };
@@ -225,12 +280,13 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
 
   return (
     <>
-      <title>{`${info.exam_title} · Reels | Govt Job Prep`}</title>
+      <title>{`${title} · Reels | Govt Job Prep`}</title>
 
       <main className="text-label" aria-label="Question reels">
         {questions.map((q, i) => (
           <ReelSlide
-            key={q.question_no}
+            // Numbers restart in every topic of a subject, so the topic is part of the key.
+            key={`${q.topic}#${q.question_no}`}
             ref={(el) => {
               slideRefs.current[i] = el;
             }}
@@ -238,8 +294,8 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
             total={questions.length}
             question={q}
             mode={mode}
-            selected={answers[q.question_no]}
-            onSelect={(option) => select(q.question_no, option)}
+            selected={selected[i]}
+            onSelect={(option) => onSelect(i, option)}
             onNext={() => goTo(i + 1)}
           />
         ))}
@@ -252,13 +308,25 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
           aria-label="Results"
           className={`relative flex min-h-dvh snap-start snap-always flex-col justify-center ${SLIDE_PADDING}`}
         >
-          <SummaryCard mode={mode} total={questions.length} answered={answered} correct={correct} onReset={reset} onRestart={() => goTo(0)} />
+          <SummaryCard
+            mode={mode}
+            total={questions.length}
+            answered={answered}
+            correct={correct}
+            onReset={reset}
+            onRestart={() => goTo(0)}
+            exitHref={backHref}
+            exitLabel={exitLabel}
+          />
         </section>
       </main>
 
       <ReelsTopBar
-        title={info.exam_title}
-        context={currentSubject ?? info.organization}
+        title={title}
+        backHref={backHref}
+        backLabel={backLabel}
+        // A feed of one topic is titled with it; the subject then reads better underneath.
+        context={currentSubject && currentSubject !== title ? currentSubject : context}
         position={onSummary ? questions.length : current + 1}
         total={questions.length}
         mode={mode}
@@ -274,14 +342,15 @@ function ReelsFeed({ slug, info, questions }: { slug: string; info: ExamInfo; qu
         onToggleMode={toggleMode}
         onSubjects={() => setSubjectsOpen(true)}
         hasSubjects={subjects.length > 1}
+        groupNoun={groupNoun}
         onReset={reset}
         onPrev={() => goTo(current - 1)}
         onNext={() => goTo(current + 1)}
       />
 
       {subjectsOpen && (
-        <Sheet title="Choose a subject" onClose={() => setSubjectsOpen(false)}>
-          <SubjectList subjects={subjects} questions={questions} answers={answers} mode={mode} current={currentSubject} onPick={jumpToSubject} />
+        <Sheet title={groupBy === "subject" ? "Choose a subject" : "Choose a topic"} onClose={() => setSubjectsOpen(false)}>
+          <SubjectList subjects={subjects} questions={questions} selected={selected} mode={mode} current={currentSubject} onPick={jumpToSubject} />
         </Sheet>
       )}
 
@@ -473,6 +542,8 @@ function FullscreenButton() {
 
 function ReelsTopBar({
   title,
+  backHref,
+  backLabel,
   context,
   position,
   total,
@@ -481,6 +552,8 @@ function ReelsTopBar({
   wrong,
 }: {
   title: string;
+  backHref: string;
+  backLabel: string;
   context: string;
   position: number;
   total: number;
@@ -493,8 +566,8 @@ function ReelsTopBar({
     <header className="px-safe pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-20 text-label">
       <div className="ios-material pointer-events-auto relative mx-auto flex max-w-xl items-center gap-2.5 overflow-hidden rounded-full p-1.5 pr-2 shadow-[0_8px_32px_rgb(0_0_0/0.12),0_2px_6px_rgb(0_0_0/0.05)] ring-[0.5px] ring-separator dark:shadow-[0_8px_32px_rgb(0_0_0/0.5)] dark:ring-white/10">
         <AppLink
-          href="/reels"
-          aria-label="Back to all reels"
+          href={backHref}
+          aria-label={backLabel}
           className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
         >
           <ChevronLeftIcon className="size-6 stroke-[2.5]" />
@@ -548,6 +621,7 @@ function ActionRail({
   onToggleMode,
   onSubjects,
   hasSubjects,
+  groupNoun,
   onReset,
   onPrev,
   onNext,
@@ -559,6 +633,7 @@ function ActionRail({
   onToggleMode: () => void;
   onSubjects: () => void;
   hasSubjects: boolean;
+  groupNoun: string;
   onReset: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -569,7 +644,7 @@ function ActionRail({
         <RailButton label={mode === "practice" ? "Practice" : "Study"} ariaLabel={mode === "practice" ? "Switch to study mode" : "Switch to practice mode"} onClick={onToggleMode}>
           {mode === "practice" ? <TargetIcon className="size-5 md:size-6" /> : <BookOpenIcon className="size-5 md:size-6" />}
         </RailButton>
-        <RailButton label="Subjects" ariaLabel="Jump to a subject" onClick={onSubjects} disabled={!hasSubjects}>
+        <RailButton label={groupNoun} ariaLabel={`Jump to one of the ${groupNoun.toLowerCase()}`} onClick={onSubjects} disabled={!hasSubjects}>
           <ListIcon className="size-5 md:size-6" />
         </RailButton>
         <RailButton label="Restart" ariaLabel="Start over" onClick={onReset} disabled={!canReset && atStart}>
@@ -618,14 +693,14 @@ function RailButton({
 function SubjectList({
   subjects,
   questions,
-  answers,
+  selected,
   mode,
   current,
   onPick,
 }: {
   subjects: { name: string; indices: number[] }[];
   questions: Question[];
-  answers: Answers;
+  selected: (string | undefined)[];
   mode: Mode;
   current: string | null;
   onPick: (indices: number[]) => void;
@@ -633,7 +708,7 @@ function SubjectList({
   return (
     <ul className="overflow-hidden rounded-2xl bg-surface dark:bg-fill">
       {subjects.map(({ name, indices }, i) => {
-        const answered = indices.filter((idx) => answers[questions[idx].question_no] !== undefined).length;
+        const answered = indices.filter((idx) => selected[idx] !== undefined).length;
         const done = answered === indices.length;
         const here = name === current;
         // Some papers interleave subjects; a number range would then wrongly include other subjects' questions.
@@ -717,6 +792,8 @@ function SummaryCard({
   correct,
   onReset,
   onRestart,
+  exitHref,
+  exitLabel,
 }: {
   mode: Mode;
   total: number;
@@ -724,6 +801,8 @@ function SummaryCard({
   correct: number;
   onReset: () => void;
   onRestart: () => void;
+  exitHref: string;
+  exitLabel: string;
 }) {
   const practice = mode === "practice";
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
@@ -775,11 +854,8 @@ function SummaryCard({
             </>
           )}
         </button>
-        <AppLink
-          href="/reels"
-          className="pressable inline-flex h-[50px] items-center justify-center rounded-full bg-fill text-[17px] font-bold text-tint"
-        >
-          Choose another exam
+        <AppLink href={exitHref} className="pressable inline-flex h-[50px] items-center justify-center rounded-full bg-fill text-[17px] font-bold text-tint">
+          {exitLabel}
         </AppLink>
       </div>
     </div>
