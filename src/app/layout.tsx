@@ -1,15 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Hind_Siliguri } from "next/font/google";
+import { FontWatcher } from "@/components/pwa/FontWatcher";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { ThemeWatcher } from "@/components/pwa/ThemeWatcher";
-import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
+import { FONT_INIT_SCRIPT, THEME_INIT_SCRIPT } from "@/lib/theme-script";
+import { banglaFontVariables } from "./fonts";
 import "./globals.css";
-
-const hindSiliguri = Hind_Siliguri({
-  variable: "--font-hind-siliguri",
-  subsets: ["bengali", "latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 // Social previews need absolute URLs. Set NEXT_PUBLIC_SITE_URL to the public domain; Vercel's production URL is the fallback.
 const siteUrl =
@@ -71,15 +66,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // data-theme is set by the inline script before hydration, so React must not compare it.
-    <html lang="en" className={`${hindSiliguri.variable} h-full antialiased`} suppressHydrationWarning>
+    // data-theme and data-font are set by the inline scripts before hydration, so React must not compare them.
+    <html lang="en" className={`${banglaFontVariables} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: FONT_INIT_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col font-sans">
         {children}
         <ServiceWorkerRegistrar />
         <ThemeWatcher />
+        <FontWatcher />
       </body>
     </html>
   );

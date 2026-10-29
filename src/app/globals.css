@@ -41,8 +41,8 @@
 }
 
 @theme inline {
-  /* SF Pro for Latin text and punctuation; Bengali glyphs fall through to Hind Siliguri. */
-  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-hind-siliguri), ui-sans-serif, system-ui, sans-serif;
+  /* SF Pro for Latin text and punctuation; Bengali glyphs fall through to the Bangla font chosen in Settings. */
+  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-bangla), ui-sans-serif, system-ui, sans-serif;
 
   --color-canvas: var(--ios-canvas);
   --color-surface: var(--ios-surface);
@@ -155,6 +155,36 @@
 @utility px-safe {
   padding-left: max(0.75rem, env(safe-area-inset-left));
   padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+/* The Bangla font is chosen in Settings and set as data-font on <html> before first paint. Kalpurush is the default,
+   so an unknown or missing value falls back to it. Keep the values in step with BANGLA_FONTS in lib/settings.ts. */
+html {
+  --font-bangla: var(--font-kalpurush);
+}
+html[data-font="solaiman-lipi"] {
+  --font-bangla: var(--font-solaiman-lipi);
+}
+html[data-font="nikosh"] {
+  --font-bangla: var(--font-nikosh);
+}
+html[data-font="adorsho-lipi"] {
+  --font-bangla: var(--font-adorsho-lipi);
+}
+html[data-font="hind-siliguri"] {
+  --font-bangla: var(--font-hind-siliguri);
+}
+html[data-font="noto-sans"] {
+  --font-bangla: var(--font-noto-sans-bengali);
+}
+html[data-font="noto-serif"] {
+  --font-bangla: var(--font-noto-serif-bengali);
+}
+html[data-font="baloo-da-2"] {
+  --font-bangla: var(--font-baloo-da-2);
+}
+html[data-font="tiro-bangla"] {
+  --font-bangla: var(--font-tiro-bangla);
 }
 
 html {

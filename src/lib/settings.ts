@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Mode } from "@/components/QuestionCard";
-import { THEME_KEY } from "./theme-script";
+import { FONT_KEY, THEME_KEY } from "./theme-script";
 
 // Per-device preferences kept in localStorage. Each setting is a tiny external store so every
 // component reading it re-renders when Settings changes it, without a context provider.
@@ -68,6 +68,33 @@ export function applyTheme(theme: Theme) {
   for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
     meta.content = THEME_COLORS[resolved];
   }
+}
+
+// ---- Bangla font
+
+// The fonts are loaded in app/fonts.ts. Keep the values in step with the data-font rules in globals.css.
+export const BANGLA_FONTS = [
+  { value: "kalpurush", label: "Kalpurush" },
+  { value: "solaiman-lipi", label: "SolaimanLipi" },
+  { value: "nikosh", label: "Nikosh" },
+  { value: "adorsho-lipi", label: "AdorshoLipi" },
+  { value: "hind-siliguri", label: "Hind Siliguri" },
+  { value: "noto-sans", label: "Noto Sans Bengali" },
+  { value: "noto-serif", label: "Noto Serif Bengali" },
+  { value: "baloo-da-2", label: "Baloo Da 2" },
+  { value: "tiro-bangla", label: "Tiro Bangla" },
+] as const;
+export type BanglaFont = (typeof BANGLA_FONTS)[number]["value"];
+
+export const fontSetting = setting<BanglaFont>(
+  FONT_KEY,
+  BANGLA_FONTS.map((f) => f.value),
+  "kalpurush",
+);
+
+/** Same as FONT_INIT_SCRIPT, at runtime. */
+export function applyFont(font: BanglaFont) {
+  document.documentElement.dataset.font = font;
 }
 
 // ---- Practice

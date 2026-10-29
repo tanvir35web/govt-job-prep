@@ -14,11 +14,11 @@ import {
   useOnline,
   useStandalone,
 } from "@/lib/offline";
-import { type Theme, clearAllAnswers, defaultModeSetting, themeSetting } from "@/lib/settings";
+import { BANGLA_FONTS, type BanglaFont, type Theme, clearAllAnswers, defaultModeSetting, fontSetting, themeSetting } from "@/lib/settings";
 import type { ExamListResponse } from "@/lib/types";
 import { CURRENT_BUILD, type UpdateCheck, applyUpdate, checkForUpdate } from "@/lib/update";
 import { useApi } from "@/lib/use-api";
-import { BookOpenIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
+import { BookOpenIcon, ChevronDownIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { ButtonRow, CustomRow, Section, SwitchRow, ValueRow } from "./SettingsList";
 
@@ -33,6 +33,7 @@ export function SettingsView() {
     <main className="px-safe mx-auto w-full max-w-2xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-8">
       <PageTitle title="Settings" />
       <AppearanceSection />
+      <FontSection />
       <PracticeSection />
       <OfflineSection />
       <UpdateSection />
@@ -84,6 +85,43 @@ function AppearanceSection() {
         })}
       </div>
     </section>
+  );
+}
+
+// ---- Bangla font
+
+const FONT_SAMPLE = "আমার সোনার বাংলা";
+
+// A native dropdown (the system picker on phones), with a Bangla sample underneath in the chosen font.
+function FontSection() {
+  const font = fontSetting.use();
+
+  return (
+    <Section title="Bangla font">
+      <CustomRow>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="bangla-font" className="text-[16px]">
+            Font
+          </label>
+          <div className="relative shrink-0">
+            <select
+              id="bangla-font"
+              value={font}
+              onChange={(e) => fontSetting.set(e.target.value as BanglaFont)}
+              className="pressable h-9 appearance-none rounded-full bg-fill pr-9 pl-4 text-[15px] font-medium text-label outline-none focus-visible:ring-2 focus-visible:ring-tint"
+            >
+              {BANGLA_FONTS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-secondary" />
+          </div>
+        </div>
+        <p className="mt-3 text-[20px] leading-snug">{FONT_SAMPLE}</p>
+      </CustomRow>
+    </Section>
   );
 }
 
