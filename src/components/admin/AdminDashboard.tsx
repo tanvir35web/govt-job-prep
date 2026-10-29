@@ -6,7 +6,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { type ExamPayload, SLUG_PATTERN, type ValidationResult, deriveSlug, validateExamPayload } from "@/lib/exam-validation";
 import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import type { ExamListResponse } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { EXAM_LIST_URL, useApi } from "@/lib/use-api";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
 import { ExamQuestionEditor } from "./ExamQuestionEditor";
@@ -54,7 +54,7 @@ function parse(text: string): Parsed {
 
 export function AdminDashboard() {
   const router = useRouter();
-  const { state: listState, retry: reloadList } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const { state: listState, retry: reloadList } = useApi<ExamListResponse>(EXAM_LIST_URL);
   const [text, setText] = useState("");
   const [slugOverride, setSlugOverride] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

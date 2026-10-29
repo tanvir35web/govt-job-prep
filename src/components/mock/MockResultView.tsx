@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { OPTION_LABELS, formatNumber, pluralize } from "@/lib/format";
 import { type MockResult, type MockSession, formatDuration } from "@/lib/mock-exam";
-import type { BankQuestion } from "@/lib/question-bank";
+import type { BankQuestion } from "@/lib/bank";
 import { CheckIcon, LightbulbIcon, ResetIcon, XIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { Ring } from "../Ring";

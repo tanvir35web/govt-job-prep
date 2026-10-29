@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { failure, success } from "@/lib/api-response";
 import { isAdmin } from "@/lib/admin-auth";
+import { invalidateExam, invalidateExamQuestions } from "@/lib/data";
 import { connectDB } from "@/lib/db";
 import { toExamDocument, validateExamPayload } from "@/lib/exam-validation";
 import { Exam } from "@/models/Exam";
@@ -63,6 +64,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     }
 
     await Exam.updateOne({ slug }, { $set: toExamDocument(slug, result.data) }, { runValidators: true });
+    invalidateExamQuestions(slug);
     const saved = result.data.questions.find((q) => q.question_no === questionNo);
     return success("Question updated.", { slug, question: saved });
   } catch (err) {
@@ -80,6 +82,7 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/admi
     await connectDB();
     const { deletedCount } = await Exam.deleteOne({ slug });
     if (deletedCount === 0) return failure(`Exam '${slug}' not found.`, 404);
+    invalidateExam(slug);
     return success("Exam deleted.", { slug });
   } catch (err) {
     console.error(`DELETE /api/admin/exams/${slug} failed:`, err);

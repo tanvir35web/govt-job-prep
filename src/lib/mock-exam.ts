@@ -1,5 +1,7 @@
 "use client";
 
+import type { BankQuestion } from "./bank";
+
 // Timed mock exams built from random questions across every exam. Everything stays on the device:
 // the last settings, an exam in progress (so it survives the app being closed), and recent results.
 
@@ -17,12 +19,10 @@ export type MockConfig = {
 
 export const DEFAULT_CONFIG: MockConfig = { count: 20, seconds: 40, subjects: [] };
 
-/** Points at a question in the bank: the exam it came from and its number there. */
-export type MockItem = { slug: string; questionNo: number };
-
 export type MockSession = {
   config: MockConfig;
-  items: MockItem[];
+  /** The questions drawn, in the order they are asked. Kept whole, so resuming and the result need no network. */
+  questions: BankQuestion[];
   /** Chosen option per item; null when skipped or timed out. */
   answers: (string | null)[];
   index: number;
@@ -77,8 +77,14 @@ export const saveConfig = (config: MockConfig) => writeJson(CONFIG_KEY, config);
 
 export function loadSession(): MockSession | null {
   const s = readJson<MockSession>(SESSION_KEY);
+  // A session saved by an older version (question references instead of questions) fails this and is dropped.
   const valid =
-    s && Array.isArray(s.items) && Array.isArray(s.answers) && s.items.length === s.answers.length && s.index >= 0 && s.index < s.items.length;
+    s &&
+    Array.isArray(s.questions) &&
+    Array.isArray(s.answers) &&
+    s.questions.length === s.answers.length &&
+    s.index >= 0 &&
+    s.index < s.questions.length;
   return valid ? s : null;
 }
 
@@ -94,16 +100,6 @@ export function addToHistory(result: MockResult) {
 }
 
 export const clearHistory = () => writeJson(HISTORY_KEY, null);
-
-/** Fisher–Yates shuffle; returns a new array. */
-export function shuffle<T>(items: readonly T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));

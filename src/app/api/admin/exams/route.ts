@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { failure, success } from "@/lib/api-response";
 import { isAdmin } from "@/lib/admin-auth";
+import { invalidateExam } from "@/lib/data";
 import { connectDB } from "@/lib/db";
 import { SLUG_PATTERN, deriveSlug, toExamDocument, validateExamPayload } from "@/lib/exam-validation";
 import { Exam } from "@/models/Exam";
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     const write = await Exam.updateOne({ slug }, { $set: toExamDocument(slug, result.data) }, { upsert: true, runValidators: true });
+    invalidateExam(slug);
     const created = write.upsertedCount === 1;
     return success(
       created ? "Exam created." : "Exam updated.",

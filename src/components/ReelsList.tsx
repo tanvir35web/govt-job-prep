@@ -7,7 +7,7 @@ import { getSavedSlugs, useOnline } from "@/lib/offline";
 import { loadAnswers, loadLastReel, loadReelsPosition } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
 import { enterFullscreenOnTouch } from "@/lib/fullscreen";
-import { useApi } from "@/lib/use-api";
+import { EXAM_LIST_URL, useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { FilterChip, SearchField } from "./ExamList";
 import { ArrowRightIcon, CircleCheckIcon, SearchIcon, WifiOffIcon } from "./icons";
@@ -21,7 +21,7 @@ type Progress = { answered: number; position: number };
 
 // The Reels tab: a grid of portrait covers, one per exam, with a "continue" card for the last one opened.
 export function ReelsList() {
-  const { state, retry } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const { state, retry } = useApi<ExamListResponse>(EXAM_LIST_URL);
   const online = useOnline();
   const [query, setQuery] = useState("");
   const [organization, setOrganization] = useState(ALL);

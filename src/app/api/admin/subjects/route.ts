@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { failure, success } from "@/lib/api-response";
 import { isAdmin } from "@/lib/admin-auth";
+import { invalidateSubject } from "@/lib/data";
 import { connectDB } from "@/lib/db";
 import { SLUG_PATTERN } from "@/lib/exam-validation";
 import { countQuestions, validateSubjectPayload } from "@/lib/subject-validation";
@@ -87,5 +88,8 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("POST /api/admin/subjects failed:", err);
     return failure("Failed to save subject.", 500);
+  } finally {
+    // Also after a failure part-way: some topics may already have been written.
+    invalidateSubject(slug);
   }
 }

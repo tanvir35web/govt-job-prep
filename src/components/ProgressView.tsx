@@ -5,7 +5,7 @@ import { softToneFor } from "@/lib/covers";
 import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import { type Answers, loadAnswers } from "@/lib/settings";
 import type { ExamDetailResponse, ExamListItem, ExamListResponse, Question } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { EXAM_LIST_URL, fetchApi, useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { ChevronLeftIcon, ChevronRightIcon } from "./icons";
 import { Ring } from "./Ring";
@@ -26,7 +26,7 @@ type ExamStat = {
 type SubjectStat = { name: string; answered: number; correct: number; total: number };
 
 export function ProgressView() {
-  const { state, retry } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const { state, retry } = useApi<ExamListResponse>(EXAM_LIST_URL);
   const exams = useMemo(() => (state.status === "success" ? state.data.exams : []), [state]);
   const [details, setDetails] = useState<Map<string, Question[] | null> | null>(null);
 
@@ -39,14 +39,8 @@ export function ProgressView() {
     let cancelled = false;
     Promise.all(
       started.map(async (e): Promise<[string, Question[] | null]> => {
-        try {
-          const res = await fetch(`/api/exams/${encodeURIComponent(e.slug)}`);
-          if (!res.ok) return [e.slug, null];
-          const body = (await res.json()) as ExamDetailResponse;
-          return [e.slug, body.questions];
-        } catch {
-          return [e.slug, null];
-        }
+        const result = await fetchApi<ExamDetailResponse>(`/api/exams/${encodeURIComponent(e.slug)}`);
+        return [e.slug, result.ok ? result.data.questions : null];
       }),
     ).then((entries) => !cancelled && setDetails(new Map(entries)));
     return () => {

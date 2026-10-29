@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatNumber, pluralize } from "@/lib/format";
 import { MARK_OPTIONS, type MockConfig, type MockResult, SECOND_OPTIONS, formatDuration, saveConfig } from "@/lib/mock-exam";
-import type { BankQuestion } from "@/lib/question-bank";
+import type { BankSummary } from "@/lib/bank";
 import { CheckIcon, TimerIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { Segmented } from "../Segmented";
@@ -11,27 +11,26 @@ import { Section } from "../settings/SettingsList";
 
 // Before an exam: marks, seconds per question and subjects, with a live summary and the start button on top.
 export function MockSetup({
-  questions,
+  summary,
   initial,
   history,
   partial,
+  starting,
   onStart,
   onClearHistory,
 }: {
-  questions: BankQuestion[];
+  summary: BankSummary;
   initial: MockConfig;
   history: MockResult[];
   /** Some exams could not be loaded (usually offline), so the pool is smaller than usual. */
   partial: { loaded: number; total: number } | null;
+  /** The questions for a new exam are being fetched. */
+  starting: boolean;
   onStart: (config: MockConfig) => void;
   onClearHistory: () => void;
 }) {
-  // Subjects sorted by how many questions they have, largest first.
-  const subjects = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const q of questions) counts.set(q.subject, (counts.get(q.subject) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [questions]);
+  // Subjects sorted by how many questions they have, largest first (the summary arrives sorted).
+  const subjects = useMemo(() => summary.subjects.map((s) => [s.name, s.count] as const), [summary]);
 
   const [config, setConfig] = useState<MockConfig>(() => ({
     ...initial,
@@ -48,7 +47,7 @@ export function MockSetup({
 
   const selected = new Set(config.subjects);
   const allSubjects = selected.size === 0;
-  const available = allSubjects ? questions.length : subjects.reduce((sum, [name, n]) => sum + (selected.has(name) ? n : 0), 0);
+  const available = allSubjects ? summary.total : subjects.reduce((sum, [name, n]) => sum + (selected.has(name) ? n : 0), 0);
   const count = Math.min(config.count, available);
 
   const toggleSubject = (name: string) => {
@@ -81,10 +80,10 @@ export function MockSetup({
         <button
           type="button"
           onClick={() => onStart({ ...config, count })}
-          disabled={count === 0}
+          disabled={count === 0 || starting}
           className="pressable mt-4 h-[50px] w-full rounded-[14px] bg-tint text-[17px] font-semibold text-white disabled:opacity-40 dark:text-black"
         >
-          Start exam
+          {starting ? "Preparing questions…" : "Start exam"}
         </button>
         {partial && (
           <p className="mt-3 text-[13px] text-secondary">
@@ -120,7 +119,7 @@ export function MockSetup({
       </Section>
 
       <Section title="Subjects" footer={`${pluralize(available, "question")} to draw from.`}>
-        <SubjectRow label="All subjects" count={questions.length} checked={allSubjects} onToggle={() => update({ subjects: [] })} />
+        <SubjectRow label="All subjects" count={summary.total} checked={allSubjects} onToggle={() => update({ subjects: [] })} />
         {subjects.map(([name, n]) => (
           <SubjectRow key={name} label={name} count={n} checked={!allSubjects && selected.has(name)} onToggle={() => toggleSubject(name)} />
         ))}

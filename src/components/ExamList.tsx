@@ -7,7 +7,7 @@ import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import { getSavedSlugs, useOnline } from "@/lib/offline";
 import { loadAnswers, loadRecentExams } from "@/lib/settings";
 import type { ExamListItem, ExamListResponse } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { EXAM_LIST_URL, useApi } from "@/lib/use-api";
 import { AppLink } from "./AppLink";
 import { CheckIcon, ChevronRightIcon, CircleCheckIcon, ExamPaperIcon, SearchIcon, XIcon } from "./icons";
 import { OfflineBadge } from "./OfflineBadge";
@@ -20,7 +20,7 @@ type Progress = { answered: number; total: number };
 
 // Home: today's date, an overall progress summary, "continue" for exams in progress, then every exam grouped by month.
 export function ExamList() {
-  const { state, retry } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const { state, retry } = useApi<ExamListResponse>(EXAM_LIST_URL);
   const online = useOnline();
   const [query, setQuery] = useState("");
   const [organization, setOrganization] = useState(ALL);

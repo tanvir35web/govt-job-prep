@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { failure, success } from "@/lib/api-response";
 import { isAdmin } from "@/lib/admin-auth";
+import { invalidateSubject } from "@/lib/data";
 import { connectDB } from "@/lib/db";
 import type { TopicFile } from "@/lib/subject-validation";
 import { Topic } from "@/models/Subject";
@@ -41,6 +42,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext<"/api/admin
     if (topic === null) {
       const { deletedCount } = await Topic.deleteMany({ slug });
       if (deletedCount === 0) return failure(`Subject '${slug}' not found.`, 404);
+      invalidateSubject(slug);
       return success("Subject deleted.", { slug });
     }
 
@@ -49,6 +51,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext<"/api/admin
     }>();
     if (!target) return failure(`Topic '${topic}' not found in '${slug}'.`, 404);
     const removed = target.questions.length;
+    invalidateSubject(slug);
 
     const subjectDeleted = !(await Topic.exists({ slug }));
     return success(

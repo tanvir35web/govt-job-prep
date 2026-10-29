@@ -17,7 +17,7 @@ import {
 import { BANGLA_FONTS, type BanglaFont, type Theme, clearAllAnswers, defaultModeSetting, fontSetting, themeSetting } from "@/lib/settings";
 import type { ExamListResponse } from "@/lib/types";
 import { CURRENT_BUILD, type UpdateCheck, applyUpdate, checkForUpdate } from "@/lib/update";
-import { useApi } from "@/lib/use-api";
+import { EXAM_LIST_URL, useApi } from "@/lib/use-api";
 import { BookOpenIcon, ChevronDownIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { ButtonRow, CustomRow, Section, SwitchRow, ValueRow } from "./SettingsList";
@@ -158,7 +158,7 @@ function PracticeSection() {
 
 function OfflineSection() {
   const online = useOnline();
-  const { state } = useApi<ExamListResponse>("/api/exams?limit=100");
+  const { state } = useApi<ExamListResponse>(EXAM_LIST_URL);
   const exams = state.status === "success" ? state.data.exams : null;
 
   const [ready, setReady] = useState<boolean | null>(null);

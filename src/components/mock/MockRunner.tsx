@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { OPTION_LABELS, formatNumber } from "@/lib/format";
 import type { MockSession } from "@/lib/mock-exam";
-import type { BankQuestion } from "@/lib/question-bank";
+import type { BankQuestion } from "@/lib/bank";
 import { XIcon } from "../icons";
 import { Ring } from "../Ring";
 
@@ -25,7 +25,7 @@ export function MockRunner({
   onQuit: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const total = session.items.length;
+  const total = session.questions.length;
   const last = session.index === total - 1;
   const chosen = session.answers[session.index];
   const limitMs = session.config.seconds * 1000;
