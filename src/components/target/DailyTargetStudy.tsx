@@ -13,8 +13,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   LightbulbIcon,
-  ResetIcon,
-  TimerIcon,
 } from "@/components/icons";
 
 export function DailyTargetStudy({
@@ -34,7 +32,6 @@ export function DailyTargetStudy({
 
   const studiedSet = useMemo(() => new Set(session.studiedKeys), [session.studiedKeys]);
   const studiedCount = studiedSet.size;
-  const isAllStudied = total > 0 && studiedCount >= total;
   const hasTakenExam = session.examScore !== null && session.examScore !== undefined;
 
   // Auto-mark the current question as studied when viewed
@@ -73,7 +70,6 @@ export function DailyTargetStudy({
   if (!currentQ) return null;
 
   const isLastQuestion = currentIndex === total - 1;
-  const showExamAction = isLastQuestion || isAllStudied;
 
   return (
     <div className="space-y-5">
@@ -152,86 +148,89 @@ export function DailyTargetStudy({
         </div>
       )}
 
-      {/* Navigation Footer */}
-      <div className="flex items-center justify-between gap-3 border-t border-separator/40 pt-4">
-        <button
-          type="button"
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-          className="flex h-10 items-center gap-1 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-secondary transition-all hover:text-label disabled:opacity-30"
-        >
-          <ChevronLeftIcon className="size-4 stroke-[2.5]" />
-          আগের
-        </button>
+      {/* Subtle completion strip on the last question */}
+      {isLastQuestion && (
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-separator/60 bg-surface/70 px-3.5 py-2.5 text-[13px]">
+          <div className="flex items-center gap-2">
+            <span className="grid size-5 place-items-center rounded-full bg-ios-green/10 text-ios-green">
+              <CheckIcon className="size-3.5 stroke-[2.5]" />
+            </span>
+            <span className="text-secondary font-medium">
+              {hasTakenExam
+                ? `ফলাফল: ${formatNumber(session.examScore ?? 0)} / ${formatNumber(total)} সঠিক`
+                : "পড়া শেষ, এবার পরীক্ষা দিন"}
+            </span>
+          </div>
 
-        <span className="text-[13px] font-semibold text-secondary tabular-nums">
-          {formatNumber(currentIndex + 1)} / {formatNumber(total)}
-        </span>
-
-        {isLastQuestion ? (
-          <button
-            type="button"
-            onClick={onGoToExam}
-            className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
-          >
-            পরীক্ষা
-            <ChevronRightIcon className="size-4 stroke-[2.5]" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleNext}
-            className="flex h-10 items-center gap-1 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
-          >
-            পরের
-            <ChevronRightIcon className="size-4 stroke-[2.5]" />
-          </button>
-        )}
-      </div>
-
-      {/* Exam CTA - Cleanly shown when reaching the end or all questions are studied */}
-      {showExamAction && (
-        <div className="pt-2">
           {hasTakenExam ? (
-            <div className="flex gap-2.5">
+            <div className="flex items-center gap-2 text-[12.5px] font-semibold">
               <button
                 type="button"
                 onClick={onGoToExam}
-                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-separator bg-surface text-[14px] font-semibold text-label shadow-xs hover:bg-fill active:scale-95"
+                className="text-secondary hover:text-label"
               >
-                <ResetIcon className="size-4" />
-                আবার পরীক্ষা দিন
+                আবার
               </button>
+              <span className="text-tertiary">·</span>
               <button
                 type="button"
                 onClick={onStartNextTarget}
-                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-tint text-[14px] font-semibold text-white shadow-xs hover:opacity-90 active:scale-95"
+                className="text-tint hover:underline"
               >
-                পরের দিন
+                পরের দিন →
               </button>
             </div>
           ) : (
-            <div className="rounded-2xl border border-tint/20 bg-tint/5 p-4 text-center">
-              <p className="text-[14px] font-semibold text-label">
-                {isAllStudied
-                  ? "সবগুলো প্রশ্ন পড়া সম্পন্ন হয়েছে!"
-                  : "পড়া শেষ হলে পরীক্ষা দিয়ে প্রস্তুতি যাচাই করুন"}
-              </p>
-              <p className="mt-1 text-[12px] text-secondary">
-                কতটুকু মনে রাখতে পেরেছেন তা যাচাই করতে পরীক্ষা দিন।
-              </p>
-              <button
-                type="button"
-                onClick={onGoToExam}
-                className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-tint px-6 text-[14px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
-              >
-                <TimerIcon className="size-4.5 stroke-[2.2]" />
-                পরীক্ষা শুরু করুন
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onGoToExam}
+              className="font-bold text-tint hover:underline flex items-center gap-1"
+            >
+              পরীক্ষা শুরু
+              <ChevronRightIcon className="size-3.5 stroke-[2.5]" />
+            </button>
           )}
         </div>
       )}
+
+      {/* Fixed Bottom Navigation Bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-separator/70 bg-surface/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-secondary transition-all hover:text-label active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeftIcon className="size-4 stroke-[2.5]" />
+            আগের
+          </button>
+
+          <span className="text-[13px] font-bold text-secondary tabular-nums">
+            {formatNumber(currentIndex + 1)} / {formatNumber(total)}
+          </span>
+
+          {isLastQuestion ? (
+            <button
+              type="button"
+              onClick={onGoToExam}
+              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4.5 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+            >
+              পরীক্ষা
+              <ChevronRightIcon className="size-4 stroke-[2.5]" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4.5 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+            >
+              পরের
+              <ChevronRightIcon className="size-4 stroke-[2.5]" />
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

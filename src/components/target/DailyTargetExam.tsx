@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatNumber, OPTION_LABELS } from "@/lib/format";
 import {
   type DailyTargetSession,
@@ -13,7 +13,6 @@ import {
   ChevronRightIcon,
   ResetIcon,
   TimerIcon,
-  XIcon,
 } from "@/components/icons";
 
 export function DailyTargetExam({
@@ -38,9 +37,13 @@ export function DailyTargetExam({
   const hasTimer = secondsPerQuestion > 0;
   const [timeLeft, setTimeLeft] = useState(secondsPerQuestion);
 
+  const goToIndex = (idx: number) => {
+    setCurrentIndex(idx);
+    if (hasTimer) setTimeLeft(secondsPerQuestion);
+  };
+
   useEffect(() => {
     if (!hasTimer || isFinished) return;
-    setTimeLeft(secondsPerQuestion);
     const interval = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -52,7 +55,7 @@ export function DailyTargetExam({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentIndex, hasTimer, secondsPerQuestion, total, isFinished]);
+  }, [hasTimer, secondsPerQuestion, total, isFinished]);
 
   const selectOption = (questionKey: string, option: string) => {
     if (isFinished) return;
@@ -273,36 +276,42 @@ export function DailyTargetExam({
         })}
       </div>
 
-      {/* Footer Navigation */}
-      <div className="flex items-center justify-between gap-3 border-t border-separator/40 pt-4">
-        <button
-          type="button"
-          onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-          disabled={currentIndex === 0}
-          className="flex h-10 items-center gap-1 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-secondary transition-all hover:text-label disabled:opacity-30"
-        >
-          <ChevronLeftIcon className="size-4 stroke-[2.5]" />
-          আগের
-        </button>
+      {/* Footer Navigation - Fixed at bottom */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-separator/70 bg-surface/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => goToIndex(Math.max(0, currentIndex - 1))}
+            disabled={currentIndex === 0}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-secondary transition-all hover:text-label active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeftIcon className="size-4 stroke-[2.5]" />
+            আগের
+          </button>
 
-        {currentIndex === total - 1 ? (
-          <button
-            type="button"
-            onClick={handleFinish}
-            className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-5 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
-          >
-            জমা দিন
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCurrentIndex((i) => Math.min(total - 1, i + 1))}
-            className="flex h-10 items-center gap-1 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
-          >
-            পরের
-            <ChevronRightIcon className="size-4 stroke-[2.5]" />
-          </button>
-        )}
+          <span className="text-[13px] font-bold text-secondary tabular-nums">
+            {formatNumber(currentIndex + 1)} / {formatNumber(total)}
+          </span>
+
+          {currentIndex === total - 1 ? (
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-5 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+            >
+              জমা দিন
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => goToIndex(Math.min(total - 1, currentIndex + 1))}
+              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4.5 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+            >
+              পরের
+              <ChevronRightIcon className="size-4 stroke-[2.5]" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

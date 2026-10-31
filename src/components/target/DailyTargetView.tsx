@@ -204,7 +204,7 @@ function TargetLoadedContent({
     (!session || session.questions.length === 0);
 
   return (
-    <main className="px-safe mx-auto w-full max-w-xl flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-16">
+    <main className="px-safe mx-auto w-full max-w-xl flex-1 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))]">
       {/* Top Header */}
       <header className="flex items-center justify-between gap-3 pb-3">
         <div className="flex min-w-0 items-center gap-2.5">
