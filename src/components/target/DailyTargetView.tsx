@@ -154,7 +154,7 @@ function TargetLoadedContent({
     }
 
     generateDailySession(config, allAvailableQuestions);
-  }, [config.id, config.dailyCount, config.topicName, allAvailableQuestions]);
+  }, [config, allAvailableQuestions]);
 
   const handleStartNextTarget = () => {
     if (allAvailableQuestions.length === 0) return;
@@ -194,20 +194,33 @@ function TargetLoadedContent({
       {/* Top Header */}
       <header className="flex items-center justify-between gap-3 pb-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <AppLink
-            href="/"
-            aria-label="হোমে ফিরে যান"
-            className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
-          >
-            <ChevronLeftIcon className="size-6 stroke-[2.5]" />
-          </AppLink>
+          {mode === "exam" ? (
+            <button
+              type="button"
+              onClick={() => onModeChange("study")}
+              aria-label="পড়ায় ফিরে যান"
+              className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
+            >
+              <ChevronLeftIcon className="size-6 stroke-[2.5]" />
+            </button>
+          ) : (
+            <AppLink
+              href="/"
+              aria-label="হোমে ফিরে যান"
+              className="pressable grid size-10 shrink-0 place-items-center rounded-full bg-fill text-tint"
+            >
+              <ChevronLeftIcon className="size-6 stroke-[2.5]" />
+            </AppLink>
+          )}
 
           <div className="min-w-0">
             <h1 className="truncate text-[18px] font-bold text-label sm:text-[20px]">
-              {config.subjectName}
+              {mode === "exam" ? "টার্গেট পরীক্ষা" : config.subjectName}
             </h1>
             <p className="truncate text-[12px] text-secondary">
-              {config.topicName ? config.topicName : "দৈনিক টার্গেট"}
+              {mode === "exam"
+                ? `${config.subjectName}${config.topicName ? ` · ${config.topicName}` : ""}`
+                : (config.topicName ? config.topicName : "দৈনিক টার্গেট")}
             </p>
           </div>
         </div>
@@ -219,35 +232,6 @@ function TargetLoadedContent({
               {formatNumber(streak.current)}
             </span>
           )}
-
-          {/* Simple Mode Switcher (Study / Exam) */}
-          <div className="flex rounded-xl bg-fill p-0.5">
-            <button
-              type="button"
-              onClick={() => onModeChange("study")}
-              className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-all ${
-                mode === "study"
-                  ? "bg-surface text-label shadow-xs"
-                  : "text-secondary hover:text-label"
-              }`}
-            >
-              পড়া
-            </button>
-            <button
-              type="button"
-              onClick={() => onModeChange("exam")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-all ${
-                mode === "exam"
-                  ? "bg-surface text-label shadow-xs"
-                  : "text-secondary hover:text-label"
-              }`}
-            >
-              পরীক্ষা
-              {session?.examScore !== null && session?.examScore !== undefined && (
-                <span className="size-1.5 rounded-full bg-ios-green" />
-              )}
-            </button>
-          </div>
 
           <button
             type="button"

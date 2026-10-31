@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatNumber, OPTION_LABELS } from "@/lib/format";
 import {
   type DailyTargetSession,
@@ -13,8 +13,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   LightbulbIcon,
+  ResetIcon,
   TimerIcon,
-  XIcon,
 } from "@/components/icons";
 
 export function DailyTargetStudy({
@@ -27,45 +27,38 @@ export function DailyTargetStudy({
   onStartNextTarget: () => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = session.questions;
   const total = questions.length;
   const currentQ = questions[currentIndex] ?? questions[0];
 
-  const studiedSet = new Set(session.studiedKeys);
+  const studiedSet = useMemo(() => new Set(session.studiedKeys), [session.studiedKeys]);
   const studiedCount = studiedSet.size;
   const isAllStudied = total > 0 && studiedCount >= total;
   const hasTakenExam = session.examScore !== null && session.examScore !== undefined;
 
-  const markStudied = (key: string, selectedOption?: string) => {
-    if (selectedOption) {
-      setAnswers((prev) => ({ ...prev, [key]: selectedOption }));
-    }
-
-    if (!studiedSet.has(key)) {
-      const nextStudied = [...session.studiedKeys, key];
+  // Auto-mark the current question as studied when viewed
+  useEffect(() => {
+    if (!currentQ) return;
+    if (!studiedSet.has(currentQ.key)) {
+      const nextStudied = [...session.studiedKeys, currentQ.key];
       const completed = nextStudied.length >= total;
       const updated: DailyTargetSession = {
         ...session,
         studiedKeys: nextStudied,
         isCompleted: completed,
-        completedAt: completed ? Date.now() : session.completedAt,
+        completedAt: completed ? (session.completedAt ?? Date.now()) : session.completedAt,
       };
       saveTodaySession(updated);
-      markQuestionsAsCompleted([key]);
+      markQuestionsAsCompleted([currentQ.key]);
 
       if (completed) {
         updateStreakOnDayComplete();
       }
     }
-  };
+  }, [currentQ, session, total, studiedSet]);
 
   const handleNext = () => {
-    // If not answered yet, navigating forward automatically marks it as studied
-    if (currentQ && !studiedSet.has(currentQ.key)) {
-      markStudied(currentQ.key);
-    }
     if (currentIndex < total - 1) {
       setCurrentIndex((i) => i + 1);
     }
@@ -79,8 +72,8 @@ export function DailyTargetStudy({
 
   if (!currentQ) return null;
 
-  const currentAnswer = answers[currentQ.key];
-  const isAnswered = currentAnswer !== undefined;
+  const isLastQuestion = currentIndex === total - 1;
+  const showExamAction = isLastQuestion || isAllStudied;
 
   return (
     <div className="space-y-5">
@@ -106,7 +99,7 @@ export function DailyTargetStudy({
         </div>
       </div>
 
-      {/* Question Block (Flat, iOS-styled) */}
+      {/* Question Block */}
       <div className="pt-2">
         {currentQ.topic && (
           <p className="text-[12px] font-medium text-secondary">
@@ -118,58 +111,44 @@ export function DailyTargetStudy({
         </h2>
       </div>
 
-      {/* Options */}
+      {/* Options - Answer highlighted by default in study mode */}
       <div className="space-y-2.5">
         {currentQ.options.map((option, i) => {
           const isCorrect = option === currentQ.correct_answer;
-          const isSelected = option === currentAnswer;
-
-          let tone = "border-separator bg-surface hover:bg-fill/70 active:scale-[0.99]";
-          let labelTone = "text-secondary";
-
-          if (isAnswered) {
-            if (isCorrect) {
-              tone = "border-ios-green/60 bg-ios-green/10 text-ios-green font-medium";
-              labelTone = "text-ios-green font-bold";
-            } else if (isSelected) {
-              tone = "border-ios-red/60 bg-ios-red/10 text-ios-red";
-              labelTone = "text-ios-red font-bold";
-            } else {
-              tone = "border-separator/50 opacity-60";
-            }
-          }
 
           return (
-            <button
+            <div
               key={i}
-              type="button"
-              disabled={isAnswered}
-              onClick={() => markStudied(currentQ.key, option)}
-              className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-[15px] sm:text-[16px] transition-all ${tone}`}
+              className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-[15px] sm:text-[16px] transition-all ${
+                isCorrect
+                  ? "border-ios-green/60 bg-ios-green/10 text-label font-medium dark:bg-ios-green/15"
+                  : "border-separator/80 bg-surface/70 text-secondary"
+              }`}
             >
-              <span className={`w-5 shrink-0 text-[14px] font-bold ${labelTone}`}>
+              <span
+                className={`w-5 shrink-0 text-[14px] font-bold ${
+                  isCorrect ? "text-ios-green" : "text-tertiary"
+                }`}
+              >
                 {OPTION_LABELS[i] ?? formatNumber(i + 1)}
               </span>
               <span className="flex-1 leading-snug">{option}</span>
-              {isAnswered && isCorrect && (
-                <CheckIcon className="size-5 shrink-0 stroke-[2.5]" />
+              {isCorrect && (
+                <CheckIcon className="size-5 shrink-0 stroke-[2.5] text-ios-green" />
               )}
-              {isAnswered && isSelected && !isCorrect && (
-                <XIcon className="size-5 shrink-0 stroke-[2.5]" />
-              )}
-            </button>
+            </div>
           );
         })}
       </div>
 
-      {/* Explanation (Shown when answered) */}
-      {isAnswered && currentQ.explanation && (
+      {/* Explanation / Description - Shown by default */}
+      {currentQ.explanation && (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/8 p-3.5 text-[14px] leading-relaxed text-label">
           <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 text-[12px] uppercase tracking-wide">
             <LightbulbIcon className="size-3.5" />
             ব্যাখ্যা
           </div>
-          <p className="mt-1 text-secondary">{currentQ.explanation}</p>
+          <p className="mt-1 text-secondary leading-relaxed">{currentQ.explanation}</p>
         </div>
       )}
 
@@ -189,47 +168,70 @@ export function DailyTargetStudy({
           {formatNumber(currentIndex + 1)} / {formatNumber(total)}
         </span>
 
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={currentIndex === total - 1}
-          className="flex h-10 items-center gap-1 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-30"
-        >
-          পরের
-          <ChevronRightIcon className="size-4 stroke-[2.5]" />
-        </button>
-      </div>
-
-      {/* Exam CTA */}
-      <div className="pt-2">
-        {hasTakenExam ? (
-          <div className="flex gap-2.5">
-            <button
-              type="button"
-              onClick={onGoToExam}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-separator bg-surface text-[14px] font-semibold text-label shadow-xs hover:bg-fill active:scale-95"
-            >
-              আবার পরীক্ষা
-            </button>
-            <button
-              type="button"
-              onClick={onStartNextTarget}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-tint text-[14px] font-semibold text-white shadow-xs hover:opacity-90 active:scale-95"
-            >
-              পরের দিন
-            </button>
-          </div>
-        ) : (
+        {isLastQuestion ? (
           <button
             type="button"
             onClick={onGoToExam}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-tint text-[15px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
+            className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
           >
-            <TimerIcon className="size-4.5 stroke-[2.2]" />
-            পরীক্ষা দিন
+            পরীক্ষা
+            <ChevronRightIcon className="size-4 stroke-[2.5]" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleNext}
+            className="flex h-10 items-center gap-1 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
+          >
+            পরের
+            <ChevronRightIcon className="size-4 stroke-[2.5]" />
           </button>
         )}
       </div>
+
+      {/* Exam CTA - Cleanly shown when reaching the end or all questions are studied */}
+      {showExamAction && (
+        <div className="pt-2">
+          {hasTakenExam ? (
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={onGoToExam}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-separator bg-surface text-[14px] font-semibold text-label shadow-xs hover:bg-fill active:scale-95"
+              >
+                <ResetIcon className="size-4" />
+                আবার পরীক্ষা দিন
+              </button>
+              <button
+                type="button"
+                onClick={onStartNextTarget}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-tint text-[14px] font-semibold text-white shadow-xs hover:opacity-90 active:scale-95"
+              >
+                পরের দিন
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-tint/20 bg-tint/5 p-4 text-center">
+              <p className="text-[14px] font-semibold text-label">
+                {isAllStudied
+                  ? "সবগুলো প্রশ্ন পড়া সম্পন্ন হয়েছে!"
+                  : "পড়া শেষ হলে পরীক্ষা দিয়ে প্রস্তুতি যাচাই করুন"}
+              </p>
+              <p className="mt-1 text-[12px] text-secondary">
+                কতটুকু মনে রাখতে পেরেছেন তা যাচাই করতে পরীক্ষা দিন।
+              </p>
+              <button
+                type="button"
+                onClick={onGoToExam}
+                className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-tint px-6 text-[14px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
+              >
+                <TimerIcon className="size-4.5 stroke-[2.2]" />
+                পরীক্ষা শুরু করুন
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
