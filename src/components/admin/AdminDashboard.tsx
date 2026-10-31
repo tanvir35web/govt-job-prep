@@ -6,7 +6,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { type ExamPayload, SLUG_PATTERN, type ValidationResult, deriveSlug, validateExamPayload } from "@/lib/exam-validation";
 import { formatExamDate, formatNumber, pluralize } from "@/lib/format";
 import type { ExamListResponse } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { clearApiCache, useApi } from "@/lib/use-api";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
 import { ExamQuestionEditor } from "./ExamQuestionEditor";
@@ -123,6 +123,7 @@ export function AdminDashboard() {
         setNotice({ kind: "success", slug: body.slug, created: body.created, questions: body.questions, warnings: body.warnings ?? [] });
         setText("");
         setSlugOverride(null);
+        clearApiCache("/api/exams");
         reloadList();
         window.scrollTo({ top: 0 });
       }
@@ -139,6 +140,7 @@ export function AdminDashboard() {
     if (handleUnauthorised(res)) return;
     if (!res.ok) window.alert("Couldn't delete. Try again.");
     else if (editingSlug === examSlug) setEditingSlug(null);
+    clearApiCache("/api/exams");
     reloadList();
   }
 

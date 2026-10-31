@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type ExamPayload, validateExamPayload } from "@/lib/exam-validation";
 import { formatNumber, pluralize } from "@/lib/format";
 import type { Question } from "@/lib/types";
+import { clearApiCache } from "@/lib/use-api";
 import { AlertIcon, ArrowLeftIcon, CheckIcon, ExternalLinkIcon, SearchIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
 
@@ -141,6 +142,7 @@ export function ExamQuestionEditor({
         return;
       }
       const next = body.question;
+      clearApiCache("/api/exams");
       setLoad({ status: "ready", exam: { ...exam, questions: exam.questions.map((q) => (q.question_no === next.question_no ? next : q)) } });
       setDraft(toDraft(next));
       setSaved(next.question_no);

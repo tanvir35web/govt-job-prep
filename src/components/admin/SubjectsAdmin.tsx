@@ -6,7 +6,7 @@ import { formatNumber, pluralize } from "@/lib/format";
 import { SLUG_PATTERN } from "@/lib/exam-validation";
 import { type SubjectValidationResult, type TopicFile, buildTopics, countQuestions, deriveSubjectSlug, validateSubjectPayload } from "@/lib/subject-validation";
 import type { SubjectListResponse } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { clearApiCache, useApi } from "@/lib/use-api";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, ResetIcon, XIcon } from "../icons";
 import { Skeleton } from "../StatusViews";
 import { JsonEditor, jsonErrorLine } from "./JsonEditor";
@@ -138,6 +138,7 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
           warnings: body.warnings ?? [],
         });
         resetEditor();
+        clearApiCache("/api/subjects");
         reloadList();
         window.scrollTo({ top: 0 });
       }
@@ -153,6 +154,7 @@ export function SubjectsAdmin({ onUnauthorised }: { onUnauthorised: (res: Respon
     const res = await fetch(`/api/admin/subjects/${encodeURIComponent(subjectSlug)}`, { method: "DELETE" });
     if (onUnauthorised(res)) return;
     if (!res.ok) window.alert("Couldn't delete. Try again.");
+    clearApiCache("/api/subjects");
     reloadList();
   }
 

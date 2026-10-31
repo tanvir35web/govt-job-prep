@@ -36,8 +36,14 @@ export function StudyView() {
   }, [router, subject, topic]);
 
   if (subject && topic !== null) return <StudySkeleton />;
-  if (!subject) return <SubjectList />;
-  return <SubjectDetail key={subject} slug={subject} />;
+  return (
+    <>
+      <div hidden={Boolean(subject)} className={subject ? "hidden" : "contents"}>
+        <SubjectList active={!subject} />
+      </div>
+      {subject && <SubjectDetail key={subject} slug={subject} />}
+    </>
+  );
 }
 
 const MAIN_CLASS = "px-safe mx-auto w-full max-w-3xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4";
@@ -108,10 +114,17 @@ function EmptyCard({ icon, title, message }: { icon: React.ReactNode; title: str
 
 // ---- Subjects
 
-function SubjectList() {
+function SubjectList({ active = true }: { active?: boolean }) {
   const { state, retry } = useApi<SubjectListResponse>("/api/subjects");
   const [query, setQuery] = useState("");
   const subjects = useMemo(() => (state.status === "success" ? state.data.subjects : []), [state]);
+  const [rev, setRev] = useState(0);
+
+  useEffect(() => {
+    if (active) {
+      setRev((r) => r + 1);
+    }
+  }, [active]);
 
   // Subjects only arrive from a client-side fetch, so localStorage is available whenever this has entries.
   const answered = useMemo(() => {
@@ -121,7 +134,7 @@ function SubjectList() {
       map.set(s.slug, s.topics.reduce((n, t) => n + Math.min(counts.get(t.name) ?? 0, t.total_questions), 0));
     }
     return map;
-  }, [subjects]);
+  }, [subjects, rev]);
 
   // A subject matches by its name or by any of its topics.
   const q = query.trim().toLowerCase();
@@ -129,7 +142,7 @@ function SubjectList() {
 
   return (
     <main className={MAIN_CLASS}>
-      <title>Study | Govt Job Prep</title>
+      {active && <title>Study | Govt Job Prep</title>}
       <PageTitle title="Study" trailing={<OfflineBadge />} />
       <SearchField value={query} onChange={setQuery} placeholder="Search subjects or topics" />
 
