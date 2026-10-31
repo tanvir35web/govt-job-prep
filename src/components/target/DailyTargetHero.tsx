@@ -13,7 +13,7 @@ import {
 } from "@/components/icons";
 import { DailyTargetSetup } from "./DailyTargetSetup";
 
-const noopSubscribe = () => () => {};
+const noopSubscribe = () => () => { };
 const useMounted = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
 
 export function DailyTargetHero({ className = "" }: { className?: string }) {
@@ -78,7 +78,7 @@ export function DailyTargetHero({ className = "" }: { className?: string }) {
     <>
       <section
         aria-label="দৈনিক পড়ার লক্ষ্য"
-        className={`rounded-2xl border border-separator/80 bg-surface p-4.5 sm:p-5 shadow-xs transition-colors ${className}`}
+        className={`rounded-[24px]! border border-separator/0 bg-surface p-4.5 sm:p-5 shadow-xs transition-colors ${className}`}
       >
         {/* Top Meta Line: Label, Streak & Settings */}
         <div className="flex items-center justify-between gap-2">
@@ -145,9 +145,8 @@ export function DailyTargetHero({ className = "" }: { className?: string }) {
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-fill">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                isDoneStudying ? "bg-ios-green" : "bg-tint"
-              }`}
+              className={`h-full rounded-full transition-all duration-500 ${isDoneStudying ? "bg-ios-green" : "bg-tint"
+                }`}
               style={{ width: `${percent}%` }}
             />
           </div>
