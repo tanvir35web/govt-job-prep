@@ -15,7 +15,7 @@ npm run dev
 | Route | Description |
 | ----- | ----------- |
 | `/` | Home tab. Exam list with search and organisation filter (calls `GET /api/exams`) |
-| `/exam` | Exam tab. Timed mock exam from random questions across every exam: choose marks (10–100, one per question), seconds per question (30–90) and subjects. No API of its own; it loads every exam through `GET /api/exams/{slug}` and drops duplicate questions. An exam in progress, the last settings and the last 10 results are kept in `localStorage`. |
+| `/exam` | Exam tab. Timed mock exam from random questions across every exam: choose marks (10–100, one per question), seconds per question (30–90) and subjects (calls `GET /api/mock-exam`). Questions are sampled randomly on the backend. An exam in progress, the last settings and the last 10 results are kept in `localStorage`. |
 | `/study` | Study tab (calls `GET /api/subjects`). Overall progress, continue the last topic, search, a tile per subject. `?subject={slug}` shows one subject: its progress, a continue button and its topics (calls `GET /api/subjects/{slug}`). |
 | `/study/topic?subject={slug}&topic={name}` | One topic's questions, laid out like an exam page (practice and study modes, progress, question grid, previous and next topic). An empty `topic` shows every question in the subject. Answers are saved in the browser per subject. |
 | `/reels` | Reels tab. Placeholder for now |
@@ -48,6 +48,7 @@ The site installs as a home-screen app (on iPhone: Safari > Share > Add to Home 
 | ------ | -------- | ----------- |
 | GET | `/api/exams?page=1&limit=20` | List of exams (`slug` + `exam_info`, no questions) |
 | GET | `/api/exams/{slug}` | One exam's `exam_info` and all `questions` |
+| GET | `/api/mock-exam?marks=20&subjects=...` | Random sampled questions for mock exam, or available subjects and question counts when `marks` is omitted. |
 | GET | `/api/version` | Deployed `version`, `build_id` and `build_time`. Not cached. |
 | POST | `/api/admin/login` | `{ username, password }`; sets an httpOnly session cookie (12 h). 5 failed attempts per 15 min per IP. |
 | POST | `/api/admin/logout` | Clears the session cookie |

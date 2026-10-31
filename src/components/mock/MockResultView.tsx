@@ -3,14 +3,14 @@
 import { useMemo, useState } from "react";
 import { OPTION_LABELS, formatNumber, pluralize } from "@/lib/format";
 import { type MockResult, type MockSession, formatDuration } from "@/lib/mock-exam";
-import type { BankQuestion } from "@/lib/question-bank";
+import type { MockQuestion } from "@/lib/types";
 import { CheckIcon, LightbulbIcon, ResetIcon, XIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { Ring } from "../Ring";
 import { Segmented } from "../Segmented";
 
 type Filter = "All" | "Wrong" | "Skipped";
-type Reviewed = { question: BankQuestion; answer: string | null; status: "correct" | "wrong" | "skipped" };
+type Reviewed = { question: MockQuestion; answer: string | null; status: "correct" | "wrong" | "skipped" };
 
 export function MockResultView({
   result,
@@ -22,7 +22,7 @@ export function MockResultView({
   result: MockResult;
   session: MockSession;
   /** The exam's questions, in the order they were asked. */
-  questions: BankQuestion[];
+  questions: MockQuestion[];
   onRetry: () => void;
   onDone: () => void;
 }) {
@@ -78,104 +78,102 @@ export function MockResultView({
           >
             <ResetIcon className="size-5" /> New exam
           </button>
-          <button type="button" onClick={onDone} className="pressable h-[50px] rounded-[14px] bg-fill text-[17px] font-semibold text-tint">
+          <button
+            type="button"
+            onClick={onDone}
+            className="pressable inline-flex h-[50px] items-center justify-center rounded-[14px] bg-fill text-[17px] font-semibold text-tint"
+          >
             Done
           </button>
         </div>
-        <p className="mt-3 text-[13px] text-secondary">
-          New exam uses the same settings: {pluralize(result.config.count, "mark")}, {result.config.seconds}s each.
-        </p>
       </section>
 
+      {/* Breakdown per subject */}
       {bySubject.length > 1 && (
-        <section className="mt-7">
-          <h2 className="mb-1.5 px-4 text-[13px] text-secondary">By subject</h2>
-          <ul className="overflow-hidden rounded-2xl bg-surface">
-            {bySubject.map(([subject, s]) => (
-              <li key={subject} className="pl-4">
-                <div className="py-3 pr-4 [li:not(:last-child)>&]:hairline-b">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate text-[17px]">{subject}</span>
-                    <span className="shrink-0 text-[15px] text-secondary tabular-nums">
-                      {formatNumber(s.correct)}/{formatNumber(s.total)}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-fill">
-                    <div className="h-full rounded-full bg-ios-green" style={{ width: `${(s.correct / s.total) * 100}%` }} />
-                  </div>
-                </div>
-              </li>
-            ))}
+        <section className="mt-6">
+          <h2 className="mb-2 px-1 text-[13px] font-semibold text-secondary">By subject</h2>
+          <ul className="overflow-hidden rounded-2xl bg-surface/60 ring-[0.5px] ring-black/5 dark:ring-white/10">
+            {bySubject.map(([name, { correct, total }]) => {
+              const spct = total ? Math.round((correct / total) * 100) : 0;
+              return (
+                <li key={name} className="flex items-center gap-3 py-2.5 pr-4 pl-4 [li:not(:last-child)_&]:hairline-b">
+                  <span className="min-w-0 flex-1 truncate text-[16px] font-medium">{name}</span>
+                  <span className="shrink-0 text-[14px] text-secondary tabular-nums">
+                    {formatNumber(correct)}/{formatNumber(total)}
+                  </span>
+                  <span className="w-12 shrink-0 text-right text-[14px] font-semibold tabular-nums text-secondary">{formatNumber(spct)}%</span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
 
-      <section className="mt-7">
-        <h2 className="mb-2 px-4 text-[13px] text-secondary">Review</h2>
-        <Segmented label="Show questions" options={["All", "Wrong", "Skipped"] as const} value={filter} onChange={setFilter} />
-        {shown.length === 0 ? (
-          <p className="mt-6 text-center text-[15px] text-secondary">Nothing here.</p>
-        ) : (
-          <ol className="mt-3 space-y-3">
-            {shown.map((r) => (
-              <ReviewCard key={r.question.key} number={reviewed.indexOf(r) + 1} item={r} />
-            ))}
-          </ol>
-        )}
+      {/* Question review */}
+      <section className="mt-6">
+        <div className="mb-2 flex items-baseline justify-between px-1">
+          <h2 className="text-[13px] font-semibold text-secondary">{pluralize(shown.length, "question")}</h2>
+          <Segmented label="Filter questions" options={["All", "Wrong", "Skipped"] as const} value={filter} onChange={setFilter} />
+        </div>
+        <ol className="flex flex-col gap-3">
+          {shown.map(({ question, answer, status }, i) => (
+            <li key={question.key ?? i} className="overflow-hidden rounded-2xl bg-surface/60 p-4 ring-[0.5px] ring-black/5 dark:ring-white/10">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[12px] font-semibold text-tint">{question.subject}</p>
+                <span
+                  className={`grid size-6 shrink-0 place-items-center rounded-full text-white dark:text-black ${
+                    status === "correct" ? "bg-ios-green" : status === "wrong" ? "bg-ios-red" : "bg-secondary"
+                  }`}
+                >
+                  {status === "correct" && <CheckIcon className="size-3.5 stroke-3" />}
+                  {status === "wrong" && <XIcon className="size-3.5 stroke-3" />}
+                  {status === "skipped" && <span className="text-[11px] font-bold">—</span>}
+                </span>
+              </div>
+              <p className="mt-1 text-[16px] font-semibold">{question.question}</p>
+
+              {/* Options */}
+              <ul className="mt-3 flex flex-col gap-1.5" aria-label="Answers">
+                {question.options.map((opt, oi) => {
+                  const isCorrect = opt === question.correct_answer;
+                  const isChosen = opt === answer;
+                  const tone = isCorrect
+                    ? "bg-ios-green/15 text-ios-green ring-[0.5px] ring-ios-green"
+                    : isChosen
+                      ? "bg-ios-red/15 text-ios-red ring-[0.5px] ring-ios-red"
+                      : "text-secondary";
+                  return (
+                    <li key={oi} className={`flex items-start gap-2.5 rounded-xl px-3 py-2 text-[15px] ${tone}`}>
+                      <span className="shrink-0 font-bold">{OPTION_LABELS[oi]}.</span>
+                      <span className="min-w-0 flex-1">{opt}</span>
+                      {isCorrect && <CheckIcon className="size-4 shrink-0 stroke-[2.5]" />}
+                      {isChosen && !isCorrect && <XIcon className="size-4 shrink-0 stroke-[2.5]" />}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {question.explanation && (
+                <div className="mt-3 rounded-xl bg-fill p-3 text-[14px]">
+                  <p className="flex items-center gap-1.5 font-semibold text-tint">
+                    <LightbulbIcon className="size-4" /> Explanation
+                  </p>
+                  <p className="mt-1 text-secondary">{question.explanation}</p>
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
       </section>
     </main>
   );
 }
 
-function Stat({ label, value, className = "", divider = false }: { label: string; value: string; className?: string; divider?: boolean }) {
+function Stat({ label, value, className = "", divider }: { label: string; value: string; className?: string; divider?: boolean }) {
   return (
-    <div className={`flex flex-col-reverse ${divider ? "border-l-[0.5px] border-separator" : ""}`}>
-      <dt className="text-[12px] text-secondary">{label}</dt>
-      <dd className={`text-[17px] font-semibold tabular-nums ${className}`}>{value}</dd>
+    <div className={`flex flex-col items-center px-1 ${divider ? "border-l border-separator" : ""}`}>
+      <dt className="text-[11px] text-secondary">{label}</dt>
+      <dd className={`mt-0.5 text-[20px] font-bold tabular-nums ${className}`}>{value}</dd>
     </div>
-  );
-}
-
-function ReviewCard({ number, item }: { number: number; item: Reviewed }) {
-  const { question: q, answer, status } = item;
-  const badge = {
-    correct: { text: "Correct", tone: "bg-ios-green/15 text-ios-green" },
-    wrong: { text: "Wrong", tone: "bg-ios-red/15 text-ios-red" },
-    skipped: { text: "Skipped", tone: "bg-fill text-secondary" },
-  }[status];
-
-  return (
-    <li className="rounded-2xl bg-surface p-4">
-      <div className="flex items-center justify-between gap-2 text-[12px]">
-        <span className="min-w-0 truncate text-secondary">
-          <span className="font-semibold text-label">Q{formatNumber(number)}</span> · {q.subject}
-        </span>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${badge.tone}`}>{badge.text}</span>
-      </div>
-      <h3 className="mt-2 text-[16px] leading-snug font-semibold">{q.question}</h3>
-      <ul className="mt-3 grid gap-1.5">
-        {q.options.map((option, i) => {
-          const correct = option === q.correct_answer;
-          const picked = option === answer;
-          const tone = correct ? "bg-ios-green/12" : picked ? "bg-ios-red/12" : "";
-          return (
-            <li key={i} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-[15px] ${tone} ${!correct && !picked ? "text-secondary" : ""}`}>
-              <span className="w-4 shrink-0 text-[13px] font-semibold">{OPTION_LABELS[i] ?? i + 1}</span>
-              <span className="flex-1">{option}</span>
-              {correct && <CheckIcon className="size-4 shrink-0 stroke-3 text-ios-green" />}
-              {picked && !correct && <XIcon className="size-4 shrink-0 stroke-3 text-ios-red" />}
-            </li>
-          );
-        })}
-      </ul>
-      {q.explanation && (
-        <details className="group mt-3">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[13px] font-semibold text-ios-yellow [&::-webkit-details-marker]:hidden">
-            <LightbulbIcon className="size-4" /> Explanation
-          </summary>
-          <p className="mt-1.5 text-[15px] leading-relaxed text-label/85">{q.explanation}</p>
-        </details>
-      )}
-    </li>
   );
 }

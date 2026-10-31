@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatNumber, pluralize } from "@/lib/format";
 import { MARK_OPTIONS, type MockConfig, type MockResult, SECOND_OPTIONS, formatDuration, saveConfig } from "@/lib/mock-exam";
-import type { BankQuestion } from "@/lib/question-bank";
+import type { MockSubjectSummary } from "@/lib/types";
 import { CheckIcon, TimerIcon } from "../icons";
 import { PageTitle } from "../PageTitle";
 import { Segmented } from "../Segmented";
@@ -11,32 +11,28 @@ import { Section } from "../settings/SettingsList";
 
 // Before an exam: marks, seconds per question and subjects, with a live summary and the start button on top.
 export function MockSetup({
-  questions,
+  subjects,
+  totalQuestions,
   initial,
   history,
-  partial,
+  starting = false,
+  error = null,
   onStart,
   onClearHistory,
 }: {
-  questions: BankQuestion[];
+  subjects: MockSubjectSummary[];
+  totalQuestions: number;
   initial: MockConfig;
   history: MockResult[];
-  /** Some exams could not be loaded (usually offline), so the pool is smaller than usual. */
-  partial: { loaded: number; total: number } | null;
+  starting?: boolean;
+  error?: string | null;
   onStart: (config: MockConfig) => void;
   onClearHistory: () => void;
 }) {
-  // Subjects sorted by how many questions they have, largest first.
-  const subjects = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const q of questions) counts.set(q.subject, (counts.get(q.subject) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [questions]);
-
   const [config, setConfig] = useState<MockConfig>(() => ({
     ...initial,
-    // Drop remembered subjects that no longer exist.
-    subjects: initial.subjects.filter((s) => subjects.some(([name]) => name === s)),
+    // Drop remembered subjects that no longer exist in the subject list.
+    subjects: subjects.length ? initial.subjects.filter((s) => subjects.some((sub) => sub.name === s)) : initial.subjects,
   }));
 
   const update = (patch: Partial<MockConfig>) =>
@@ -48,8 +44,10 @@ export function MockSetup({
 
   const selected = new Set(config.subjects);
   const allSubjects = selected.size === 0;
-  const available = allSubjects ? questions.length : subjects.reduce((sum, [name, n]) => sum + (selected.has(name) ? n : 0), 0);
-  const count = Math.min(config.count, available);
+  const available = allSubjects
+    ? totalQuestions
+    : subjects.filter((s) => selected.has(s.name)).reduce((sum, s) => sum + s.count, 0);
+  const count = Math.min(config.count, available > 0 ? available : config.count);
 
   const toggleSubject = (name: string) => {
     const next = new Set(selected);
@@ -78,20 +76,21 @@ export function MockSetup({
             </p>
           </div>
         </div>
+
+        {error && (
+          <p className="mt-3 rounded-xl bg-ios-red/10 px-3 py-2 text-[14px] text-ios-red font-medium">
+            {error}
+          </p>
+        )}
+
         <button
           type="button"
           onClick={() => onStart({ ...config, count })}
-          disabled={count === 0}
-          className="pressable mt-4 h-[50px] w-full rounded-[14px] bg-tint text-[17px] font-semibold text-white disabled:opacity-40 dark:text-black"
+          disabled={starting || totalQuestions === 0 || count === 0}
+          className="pressable mt-4 flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-tint text-[17px] font-semibold text-white disabled:opacity-40 dark:text-black"
         >
-          Start exam
+          {starting ? "Preparing exam questions…" : "Start exam"}
         </button>
-        {partial && (
-          <p className="mt-3 text-[13px] text-secondary">
-            Only {formatNumber(partial.loaded)} of {pluralize(partial.total, "exam")} could be loaded, so fewer questions are available. Exams saved for
-            offline use always load.
-          </p>
-        )}
       </section>
 
       <Section
@@ -120,9 +119,9 @@ export function MockSetup({
       </Section>
 
       <Section title="Subjects" footer={`${pluralize(available, "question")} to draw from.`}>
-        <SubjectRow label="All subjects" count={questions.length} checked={allSubjects} onToggle={() => update({ subjects: [] })} />
-        {subjects.map(([name, n]) => (
-          <SubjectRow key={name} label={name} count={n} checked={!allSubjects && selected.has(name)} onToggle={() => toggleSubject(name)} />
+        <SubjectRow label="All subjects" count={totalQuestions} checked={allSubjects} onToggle={() => update({ subjects: [] })} />
+        {subjects.map((s) => (
+          <SubjectRow key={s.name} label={s.name} count={s.count} checked={!allSubjects && selected.has(s.name)} onToggle={() => toggleSubject(s.name)} />
         ))}
       </Section>
 

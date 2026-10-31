@@ -305,3 +305,12 @@ export const TimerIcon = (p: IconProps) => (
     <path d="M12 9v4l2.5 2.5M10 2h4M12 2v3M19 6l1.5-1.5" />
   </Icon>
 );
+
+// Fire / Flame icon for streak tracking
+export const FlameIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c1.38 0 2.5-1.12 2.5-2.5 0-.61-.22-1.17-.59-1.61L12 11.5l-.91 1.39c-.37.44-.59 1-.59 1.61z" />
+    <path d="M12 2c-1.5 3-4 5.5-4 9.5a6 6 0 0 0 12 0c0-3.5-2.5-6.5-4-9.5-1 2-2 3-4 0z" />
+  </Icon>
+);
+

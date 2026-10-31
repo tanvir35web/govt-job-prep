@@ -84,6 +84,11 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname === "/api/subjects") {
     event.respondWith(networkFirst(request, API_CACHE));
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/mock-exam")) {
+    event.respondWith(networkFirst(request, API_CACHE));
   }
 });
 

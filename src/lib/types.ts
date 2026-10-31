@@ -79,3 +79,36 @@ export type SubjectDetailResponse = {
   topics: TopicSummary[];
   questions: SubjectQuestion[];
 };
+
+// ---- Timed mock exam (/api/mock-exam)
+
+export type MockSubjectSummary = {
+  name: string;
+  count: number;
+};
+
+export type MockMetaResponse = {
+  status: "success";
+  code: number;
+  message: string;
+  total_questions: number;
+  subjects: MockSubjectSummary[];
+};
+
+export type MockQuestion = Question & {
+  slug: string;
+  examTitle: string;
+  key: string;
+};
+
+export type MockExamResponse = {
+  status: "success";
+  code: number;
+  message: string;
+  config: {
+    count: number;
+    subjects: string[];
+  };
+  total_available: number;
+  questions: MockQuestion[];
+};

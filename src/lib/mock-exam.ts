@@ -1,6 +1,8 @@
 "use client";
 
-// Timed mock exams built from random questions across every exam. Everything stays on the device:
+import type { MockQuestion } from "./types";
+
+// Timed mock exams built from random questions sampled directly on the backend. Everything stays on the device:
 // the last settings, an exam in progress (so it survives the app being closed), and recent results.
 
 export const MARK_OPTIONS = [10, 20, 30, 50, 100] as const;
@@ -22,7 +24,7 @@ export type MockItem = { slug: string; questionNo: number };
 
 export type MockSession = {
   config: MockConfig;
-  items: MockItem[];
+  questions: MockQuestion[];
   /** Chosen option per item; null when skipped or timed out. */
   answers: (string | null)[];
   index: number;
@@ -78,7 +80,13 @@ export const saveConfig = (config: MockConfig) => writeJson(CONFIG_KEY, config);
 export function loadSession(): MockSession | null {
   const s = readJson<MockSession>(SESSION_KEY);
   const valid =
-    s && Array.isArray(s.items) && Array.isArray(s.answers) && s.items.length === s.answers.length && s.index >= 0 && s.index < s.items.length;
+    s &&
+    Array.isArray(s.questions) &&
+    s.questions.length > 0 &&
+    Array.isArray(s.answers) &&
+    s.questions.length === s.answers.length &&
+    s.index >= 0 &&
+    s.index < s.questions.length;
   return valid ? s : null;
 }
 
@@ -94,6 +102,15 @@ export function addToHistory(result: MockResult) {
 }
 
 export const clearHistory = () => writeJson(HISTORY_KEY, null);
+
+export function buildMockExamApiUrl(config: MockConfig): string {
+  const params = new URLSearchParams();
+  params.set("marks", String(config.count));
+  if (config.subjects.length > 0) {
+    params.set("subjects", config.subjects.join(","));
+  }
+  return `/api/mock-exam?${params.toString()}`;
+}
 
 /** Fisher–Yates shuffle; returns a new array. */
 export function shuffle<T>(items: readonly T[]): T[] {
