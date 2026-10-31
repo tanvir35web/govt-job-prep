@@ -3,14 +3,19 @@
 import { useState } from "react";
 import { formatNumber, OPTION_LABELS } from "@/lib/format";
 import {
-  type DailyTargetQuestion,
   type DailyTargetSession,
   markQuestionsAsCompleted,
   saveTodaySession,
   updateStreakOnDayComplete,
 } from "@/lib/daily-target";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, FlameIcon, LightbulbIcon, PlayIcon, ResetIcon, TargetIcon, TimerIcon, XIcon } from "@/components/icons";
-import { Ring } from "@/components/Ring";
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LightbulbIcon,
+  TimerIcon,
+  XIcon,
+} from "@/components/icons";
 
 export function DailyTargetStudy({
   session,
@@ -21,10 +26,8 @@ export function DailyTargetStudy({
   onGoToExam: () => void;
   onStartNextTarget: () => void;
 }) {
-  const [mode, setMode] = useState<"practice" | "study">("practice");
-  const [viewStyle, setViewStyle] = useState<"single" | "list">("single");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>(() => ({}));
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = session.questions;
   const total = questions.length;
@@ -33,6 +36,7 @@ export function DailyTargetStudy({
   const studiedSet = new Set(session.studiedKeys);
   const studiedCount = studiedSet.size;
   const isAllStudied = total > 0 && studiedCount >= total;
+  const hasTakenExam = session.examScore !== null && session.examScore !== undefined;
 
   const markStudied = (key: string, selectedOption?: string) => {
     if (selectedOption) {
@@ -57,20 +61,11 @@ export function DailyTargetStudy({
     }
   };
 
-  const markAllAsStudied = () => {
-    const allKeys = questions.map((q) => q.key);
-    const updated: DailyTargetSession = {
-      ...session,
-      studiedKeys: allKeys,
-      isCompleted: true,
-      completedAt: Date.now(),
-    };
-    saveTodaySession(updated);
-    markQuestionsAsCompleted(allKeys);
-    updateStreakOnDayComplete();
-  };
-
   const handleNext = () => {
+    // If not answered yet, navigating forward automatically marks it as studied
+    if (currentQ && !studiedSet.has(currentQ.key)) {
+      markStudied(currentQ.key);
+    }
     if (currentIndex < total - 1) {
       setCurrentIndex((i) => i + 1);
     }
@@ -82,360 +77,159 @@ export function DailyTargetStudy({
     }
   };
 
+  if (!currentQ) return null;
+
+  const currentAnswer = answers[currentQ.key];
+  const isAnswered = currentAnswer !== undefined;
+
   return (
-    <div className="space-y-6">
-      {/* Target Progress Bar & Header */}
-      <section className="rounded-2xl border border-separator/80 bg-surface/70 p-4 shadow-sm backdrop-blur-md dark:border-white/10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-tint uppercase tracking-wide">
-                আজকের লক্ষ্য
-              </span>
-              <span className="text-[12px] text-tertiary">·</span>
-              <span className="text-[12px] font-medium text-secondary">
-                {session.targetSubject} {session.targetTopic && `(${session.targetTopic})`}
-              </span>
-            </div>
-            <h2 className="mt-1 text-[18px] font-bold text-label">
-              {formatNumber(studiedCount)} / {formatNumber(total)}টি পড়া হয়েছে
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Mode Switcher */}
-            <div className="flex rounded-xl bg-fill p-1">
-              <button
-                type="button"
-                onClick={() => setMode("practice")}
-                className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-all ${mode === "practice" ? "bg-surface text-label shadow-xs" : "text-secondary hover:text-label"
-                  }`}
-              >
-                অনুশীলন
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("study")}
-                className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-all ${mode === "study" ? "bg-surface text-label shadow-xs" : "text-secondary hover:text-label"
-                  }`}
-              >
-                শিখন
-              </button>
-            </div>
-
-            {/* View Style Switcher */}
-            <div className="flex rounded-xl bg-fill p-1">
-              <button
-                type="button"
-                onClick={() => setViewStyle("single")}
-                className={`rounded-lg px-2 py-1 text-[12px] font-semibold transition-all ${viewStyle === "single" ? "bg-surface text-label shadow-xs" : "text-secondary"
-                  }`}
-                title="একক প্রশ্ন ভিউ"
-              >
-                একক
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewStyle("list")}
-                className={`rounded-lg px-2 py-1 text-[12px] font-semibold transition-all ${viewStyle === "list" ? "bg-surface text-label shadow-xs" : "text-secondary"
-                  }`}
-                title="সব প্রশ্ন একসাথে"
-              >
-                তালিকা
-              </button>
-            </div>
-          </div>
+    <div className="space-y-5">
+      {/* Sleek Minimal Progress Tracker */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-[13px] font-medium text-secondary">
+          <span>
+            প্রশ্ন{" "}
+            <strong className="font-bold text-label tabular-nums">
+              {formatNumber(currentIndex + 1)}
+            </strong>{" "}
+            / {formatNumber(total)}
+          </span>
+          <span className="text-[12px] tabular-nums">
+            {formatNumber(studiedCount)}টি পড়া হয়েছে
+          </span>
         </div>
-
-        {/* Progress Tracker Bar */}
-        <div className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-fill">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-fill">
           <div
             className="h-full rounded-full bg-tint transition-all duration-300"
             style={{ width: `${total ? (studiedCount / total) * 100 : 0}%` }}
           />
         </div>
-      </section>
+      </div>
 
-      {/* Completion Banner if all studied */}
-      {isAllStudied && (
-        <div className="animate-fade-in overflow-hidden rounded-2xl border border-ios-green/40 bg-ios-green/10 p-5 shadow-sm">
-          <div className="flex items-start gap-3.5">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-ios-green text-white shadow-md">
-              <CheckIcon className="size-6 stroke-[2.5]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[17px] font-bold text-label">
-                🎉 আজকের পড়া সম্পন্ন!
-              </h3>
-              <p className="mt-1 text-[14px] leading-relaxed text-secondary">
-                আজকের নির্ধারিত {formatNumber(total)}টি প্রশ্ন পড়া শেষ হয়েছে। এবার প্রস্তুতি যাচাই করতে পরীক্ষা দিন।
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={onGoToExam}
-                  className="flex h-10 items-center gap-1.5 rounded-xl bg-ios-green px-4 text-[14px] font-semibold text-white shadow transition-all hover:opacity-90 active:scale-95"
-                >
-                  <TimerIcon className="size-4 stroke-[2.2]" />
-                  পরীক্ষা দিন
-                </button>
+      {/* Question Block (Flat, iOS-styled) */}
+      <div className="pt-2">
+        {currentQ.topic && (
+          <p className="text-[12px] font-medium text-secondary">
+            {currentQ.topic}
+          </p>
+        )}
+        <h2 className="mt-1 text-[18px] sm:text-[20px] font-semibold leading-relaxed text-label">
+          {currentQ.question}
+        </h2>
+      </div>
 
-                <button
-                  type="button"
-                  onClick={onStartNextTarget}
-                  className="flex h-10 items-center gap-1.5 rounded-xl border border-separator bg-surface px-4 text-[13px] font-semibold text-label shadow-xs transition-all hover:bg-fill active:scale-95"
-                >
-                  পরের দিন
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Options */}
+      <div className="space-y-2.5">
+        {currentQ.options.map((option, i) => {
+          const isCorrect = option === currentQ.correct_answer;
+          const isSelected = option === currentAnswer;
 
-      {/* Single Question View */}
-      {viewStyle === "single" && currentQ && (
-        <div className="rounded-2xl border border-separator/80 bg-surface/90 p-5 shadow-sm backdrop-blur-md">
-          {/* Header of single question */}
-          <div className="flex items-center justify-between border-b border-separator/50 pb-3">
-            <span className="text-[13px] font-bold text-tint">
-              প্রশ্ন {formatNumber(currentIndex + 1)} / {formatNumber(total)}
-            </span>
-            <div className="flex items-center gap-2">
-              {studiedSet.has(currentQ.key) && (
-                <span className="flex items-center gap-1 text-[12px] font-semibold text-ios-green">
-                  <CheckIcon className="size-3.5 stroke-[2.5]" />
-                  পড়া সম্পন্ন
-                </span>
-              )}
-              {currentQ.topic && (
-                <span className="rounded-md bg-fill px-2 py-0.5 text-[11px] font-medium text-secondary">
-                  {currentQ.topic}
-                </span>
-              )}
-            </div>
-          </div>
+          let tone = "border-separator bg-surface hover:bg-fill/70 active:scale-[0.99]";
+          let labelTone = "text-secondary";
 
-          {/* Question Text */}
-          <h3 className="mt-4 text-[18px] font-semibold leading-relaxed text-label">
-            {currentQ.question}
-          </h3>
+          if (isAnswered) {
+            if (isCorrect) {
+              tone = "border-ios-green/60 bg-ios-green/10 text-ios-green font-medium";
+              labelTone = "text-ios-green font-bold";
+            } else if (isSelected) {
+              tone = "border-ios-red/60 bg-ios-red/10 text-ios-red";
+              labelTone = "text-ios-red font-bold";
+            } else {
+              tone = "border-separator/50 opacity-60";
+            }
+          }
 
-          {/* Options Grid */}
-          <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-            {currentQ.options.map((option, i) => {
-              const selected = answers[currentQ.key];
-              const revealed = mode === "study" || selected !== undefined;
-              const isCorrect = option === currentQ.correct_answer;
-              const isSelected = option === selected;
-
-              let tone = "border-separator bg-surface hover:bg-fill";
-              let labelTone = "text-secondary";
-
-              if (revealed && isCorrect) {
-                tone = "border-ios-green/60 bg-ios-green/10 text-ios-green font-medium";
-                labelTone = "text-ios-green font-bold";
-              } else if (revealed && isSelected && !isCorrect) {
-                tone = "border-ios-red/60 bg-ios-red/10 text-ios-red";
-                labelTone = "text-ios-red font-bold";
-              } else if (revealed) {
-                tone = "border-separator/50 opacity-75";
-              }
-
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  disabled={revealed}
-                  onClick={() => markStudied(currentQ.key, option)}
-                  className={`flex min-h-12 w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-[15px] transition-all ${tone} ${revealed ? "cursor-default" : "cursor-pointer active:scale-[0.99]"
-                    }`}
-                >
-                  <span className={`w-5 shrink-0 text-[14px] font-bold ${labelTone}`}>
-                    {OPTION_LABELS[i] ?? formatNumber(i + 1)}
-                  </span>
-                  <span className="flex-1">{option}</span>
-                  {revealed && isCorrect && <CheckIcon className="size-4.5 shrink-0 stroke-[2.5]" />}
-                  {revealed && isSelected && !isCorrect && <XIcon className="size-4.5 shrink-0 stroke-[2.5]" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Feedback & Explanation */}
-          {(mode === "study" || answers[currentQ.key] !== undefined) && (
-            <div className="mt-5 space-y-3 pt-3 border-t border-separator/40">
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-bold text-ios-green">
-                  সঠিক উত্তর: {currentQ.correct_answer}
-                </span>
-              </div>
-
-              {currentQ.explanation && (
-                <div className="rounded-xl border-l-3 border-amber-500 bg-amber-500/8 p-3 text-[14px] text-label/90">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 text-[12px] uppercase tracking-wide">
-                    <LightbulbIcon className="size-3.5" />
-                    ব্যাখ্যা
-                  </div>
-                  <p className="mt-1 leading-relaxed">{currentQ.explanation}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Single Question Footer Navigation */}
-            <div className="mt-6 flex items-center justify-between gap-2 border-t border-separator/50 pt-4">
-              <button
-                type="button"
-                onClick={handlePrev}
-                disabled={currentIndex === 0}
-                className="flex h-9 items-center gap-1 rounded-xl border border-separator bg-surface px-3 text-[13px] font-semibold text-secondary hover:text-label disabled:opacity-30"
-              >
-                <ChevronLeftIcon className="size-4 stroke-[2.5]" />
-                আগের
-              </button>
-
-                {!studiedSet.has(currentQ.key) ? (
-              <button
-                type="button"
-                onClick={() => markStudied(currentQ.key)}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-tint/12 px-3.5 text-[13px] font-semibold text-tint hover:bg-tint/20 active:scale-95 whitespace-nowrap"
-              >
-                <CheckIcon className="size-3.5 stroke-[2.5]" />
-                পড়া শেষ
-              </button>
-              ) : (
-              <span className="flex items-center gap-1 text-[12px] font-semibold text-ios-green">
-                <CheckIcon className="size-3.5 stroke-[2.5]" />
-                সম্পন্ন
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={isAnswered}
+              onClick={() => markStudied(currentQ.key, option)}
+              className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-[15px] sm:text-[16px] transition-all ${tone}`}
+            >
+              <span className={`w-5 shrink-0 text-[14px] font-bold ${labelTone}`}>
+                {OPTION_LABELS[i] ?? formatNumber(i + 1)}
               </span>
-            )}
+              <span className="flex-1 leading-snug">{option}</span>
+              {isAnswered && isCorrect && (
+                <CheckIcon className="size-5 shrink-0 stroke-[2.5]" />
+              )}
+              {isAnswered && isSelected && !isCorrect && (
+                <XIcon className="size-5 shrink-0 stroke-[2.5]" />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={currentIndex === total - 1}
-                className="flex h-9 items-center gap-1 rounded-xl bg-tint px-3.5 text-[13px] font-semibold text-white shadow-xs hover:opacity-90 disabled:opacity-30 whitespace-nowrap"
-              >
-                পরের
-                <ChevronRightIcon className="size-4 stroke-[2.5]" />
-              </button>
-            </div>
-
-            {/* Quick Question Selector Pills */}
-            <div className="mt-5 flex flex-wrap gap-1.5 pt-2">
-              {questions.map((q, idx) => {
-                const active = idx === currentIndex;
-                const done = studiedSet.has(q.key);
-                return (
-                  <button
-                    key={q.key}
-                    type="button"
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`size-7 rounded-lg text-[12px] font-bold transition-all ${active
-                        ? "ring-2 ring-tint bg-tint text-white"
-                        : done
-                          ? "bg-ios-green/15 text-ios-green hover:bg-ios-green/25"
-                          : "bg-fill text-secondary hover:text-label"
-                      }`}
-                  >
-                    {formatNumber(idx + 1)}
-                  </button>
-                );
-              })}
-            </div>
+      {/* Explanation (Shown when answered) */}
+      {isAnswered && currentQ.explanation && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/8 p-3.5 text-[14px] leading-relaxed text-label">
+          <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 text-[12px] uppercase tracking-wide">
+            <LightbulbIcon className="size-3.5" />
+            ব্যাখ্যা
           </div>
+          <p className="mt-1 text-secondary">{currentQ.explanation}</p>
+        </div>
       )}
 
-          {/* List View */}
-          {viewStyle === "list" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[13px] text-secondary">
-                  তালিকা থেকে সরাসরি অনুশীলন ও পড়ুন
-                </span>
-                <button
-                  type="button"
-                  onClick={markAllAsStudied}
-                  className="text-[13px] font-semibold text-tint hover:underline"
-                >
-                  সব সম্পন্ন
-                </button>
-              </div>
+      {/* Navigation Footer */}
+      <div className="flex items-center justify-between gap-3 border-t border-separator/40 pt-4">
+        <button
+          type="button"
+          onClick={handlePrev}
+          disabled={currentIndex === 0}
+          className="flex h-10 items-center gap-1 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-secondary transition-all hover:text-label disabled:opacity-30"
+        >
+          <ChevronLeftIcon className="size-4 stroke-[2.5]" />
+          আগের
+        </button>
 
-              {questions.map((q, idx) => {
-                const selected = answers[q.key];
-                const revealed = mode === "study" || selected !== undefined;
-                const isStudied = studiedSet.has(q.key);
+        <span className="text-[13px] font-semibold text-secondary tabular-nums">
+          {formatNumber(currentIndex + 1)} / {formatNumber(total)}
+        </span>
 
-                return (
-                  <article
-                    key={q.key}
-                    className="rounded-2xl border border-separator/80 bg-surface/80 p-4 shadow-xs backdrop-blur-md"
-                  >
-                    <div className="flex items-center justify-between text-[12px] text-secondary pb-2 border-b border-separator/40">
-                      <span className="font-bold text-tint">প্রশ্ন {formatNumber(idx + 1)}</span>
-                      {isStudied && (
-                        <span className="flex items-center gap-1 font-semibold text-ios-green">
-                          <CheckIcon className="size-3.5 stroke-[2.5]" /> পড়া সম্পন্ন
-                        </span>
-                      )}
-                    </div>
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={currentIndex === total - 1}
+          className="flex h-10 items-center gap-1 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95 disabled:opacity-30"
+        >
+          পরের
+          <ChevronRightIcon className="size-4 stroke-[2.5]" />
+        </button>
+      </div>
 
-                    <h4 className="mt-2 text-[16px] font-semibold leading-relaxed text-label">
-                      {q.question}
-                    </h4>
-
-                    <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
-                      {q.options.map((opt, i) => {
-                        const isCorrect = opt === q.correct_answer;
-                        const isSelected = opt === selected;
-
-                        let tone = "border-separator bg-surface";
-                        let labelTone = "text-secondary";
-
-                        if (revealed && isCorrect) {
-                          tone = "border-ios-green/60 bg-ios-green/10 text-ios-green font-medium";
-                          labelTone = "text-ios-green font-bold";
-                        } else if (revealed && isSelected && !isCorrect) {
-                          tone = "border-ios-red/60 bg-ios-red/10 text-ios-red";
-                          labelTone = "text-ios-red font-bold";
-                        }
-
-                        return (
-                          <button
-                            key={i}
-                            type="button"
-                            disabled={revealed}
-                            onClick={() => markStudied(q.key, opt)}
-                            className={`flex min-h-10 items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-[14px] transition-all ${tone} ${revealed ? "cursor-default" : "cursor-pointer active:bg-fill"
-                              }`}
-                          >
-                            <span className={`w-4 text-[13px] font-bold ${labelTone}`}>
-                              {OPTION_LABELS[i] ?? formatNumber(i + 1)}
-                            </span>
-                            <span className="flex-1">{opt}</span>
-                            {revealed && isCorrect && <CheckIcon className="size-4 shrink-0 stroke-[2.5]" />}
-                            {revealed && isSelected && !isCorrect && <XIcon className="size-4 shrink-0 stroke-[2.5]" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {revealed && q.explanation && (
-                      <div className="mt-3 rounded-lg border-l-2 border-amber-500 bg-amber-500/8 p-2.5 text-[13px] text-label/90">
-                        <p className="font-semibold text-amber-700 dark:text-amber-400 text-[11px] uppercase">
-                          ব্যাখ্যা
-                        </p>
-                        <p className="mt-0.5">{q.explanation}</p>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
+      {/* Exam CTA */}
+      <div className="pt-2">
+        {hasTakenExam ? (
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={onGoToExam}
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-separator bg-surface text-[14px] font-semibold text-label shadow-xs hover:bg-fill active:scale-95"
+            >
+              আবার পরীক্ষা
+            </button>
+            <button
+              type="button"
+              onClick={onStartNextTarget}
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-tint text-[14px] font-semibold text-white shadow-xs hover:opacity-90 active:scale-95"
+            >
+              পরের দিন
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onGoToExam}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-tint text-[15px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
+          >
+            <TimerIcon className="size-4.5 stroke-[2.2]" />
+            পরীক্ষা দিন
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
-
