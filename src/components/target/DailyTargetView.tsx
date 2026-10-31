@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatNumber } from "@/lib/format";
 import {
@@ -40,13 +40,27 @@ type QuestionsApiResponse = {
   questions: DailyTargetQuestionItem[];
 };
 
+const noopSubscribe = () => () => {};
+const useMounted = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
+
 export function DailyTargetView() {
+  const mounted = useMounted();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [mode, setMode] = useState<"study" | "exam">(tabParam === "exam" ? "exam" : "study");
   const [setupOpen, setSetupOpen] = useState(searchParams.get("setup") === "true");
 
   const { activeConfig, session, streak, configs, completedKeys } = useDailyTargetState();
+
+  if (!mounted) {
+    return (
+      <main className="px-safe mx-auto w-full max-w-xl flex-1 pt-[max(1rem,env(safe-area-inset-top))] pb-12">
+        <Skeleton className="h-10 w-44 rounded-xl" />
+        <Skeleton className="mt-6 h-48 rounded-2xl" />
+        <Skeleton className="mt-4 h-64 rounded-2xl" />
+      </main>
+    );
+  }
 
   // If no target is set yet
   if (!activeConfig) {

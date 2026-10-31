@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { formatNumber } from "@/lib/format";
 import { useDailyTargetState } from "@/lib/daily-target";
 import { AppLink } from "@/components/AppLink";
@@ -13,9 +13,21 @@ import {
 } from "@/components/icons";
 import { DailyTargetSetup } from "./DailyTargetSetup";
 
+const noopSubscribe = () => () => {};
+const useMounted = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
+
 export function DailyTargetHero({ className = "" }: { className?: string }) {
+  const mounted = useMounted();
   const { activeConfig, session, streak } = useDailyTargetState();
   const [setupOpen, setSetupOpen] = useState(false);
+
+  if (!mounted) {
+    return (
+      <div
+        className={`h-[150px] w-full rounded-2xl border border-separator/60 bg-surface/50 animate-pulse ${className}`}
+      />
+    );
+  }
 
   // If no target is configured yet
   if (!activeConfig) {
