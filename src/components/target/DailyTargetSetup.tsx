@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { formatNumber } from "@/lib/format";
 import {
-  COUNT_PRESETS,
-  TIMER_PRESETS,
   type DailyTargetConfig,
   upsertTargetConfig,
 } from "@/lib/daily-target";
@@ -12,6 +10,15 @@ import type { DailyTargetMetaSubject } from "@/app/api/daily-target/meta/route";
 import { useApi } from "@/lib/use-api";
 import { Sheet } from "@/components/Sheet";
 import { CheckIcon, ResetIcon } from "@/components/icons";
+
+const QUESTION_COUNTS = [15, 20, 30, 50] as const;
+
+const TIMERS = [
+  { value: 0, label: "বন্ধ" },
+  { value: 30, label: "৩০ সে." },
+  { value: 45, label: "৪৫ সে." },
+  { value: 60, label: "৬০ সে." },
+] as const;
 
 type MetaResponse = {
   status: "success";
@@ -37,40 +44,59 @@ export function DailyTargetSetup({
   completedInTopic?: number;
   totalInTopic?: number;
 }) {
+  if (!open) return null;
+
+  return (
+    <DailyTargetSetupInner
+      key={editingConfig?.id ?? "new"}
+      onClose={onClose}
+      editingConfig={editingConfig}
+      onSaved={onSaved}
+      onResetTopic={onResetTopic}
+      completedInTopic={completedInTopic}
+      totalInTopic={totalInTopic}
+    />
+  );
+}
+
+function DailyTargetSetupInner({
+  onClose,
+  editingConfig,
+  onSaved,
+  onResetTopic,
+  completedInTopic,
+  totalInTopic,
+}: {
+  onClose: () => void;
+  editingConfig?: DailyTargetConfig | null;
+  onSaved?: (saved: DailyTargetConfig) => void;
+  onResetTopic?: () => void;
+  completedInTopic?: number;
+  totalInTopic?: number;
+}) {
   const { state: metaState } = useApi<MetaResponse>("/api/daily-target/meta");
   const subjects = useMemo(
     () => (metaState.status === "success" ? metaState.data.subjects : []),
     [metaState],
   );
 
-  const initialSubject = editingConfig?.subjectId ?? (subjects[0]?.id ?? "");
-  const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubject);
-  const [selectedTopic, setSelectedTopic] = useState(editingConfig?.topicName ?? "");
-  const [dailyCount, setDailyCount] = useState(editingConfig?.dailyCount ?? 30);
-  const [customCount, setCustomCount] = useState(
-    editingConfig && !COUNT_PRESETS.includes(editingConfig.dailyCount as never)
-      ? String(editingConfig.dailyCount)
-      : "",
+  const [selectedSubjectId, setSelectedSubjectId] = useState(
+    () => editingConfig?.subjectId ?? ""
   );
-  const [secondsPerQuestion, setSecondsPerQuestion] = useState(editingConfig?.secondsPerQuestion ?? 45);
-
-  useEffect(() => {
-    if (editingConfig) {
-      setSelectedSubjectId(editingConfig.subjectId);
-      setSelectedTopic(editingConfig.topicName);
-      setDailyCount(editingConfig.dailyCount);
-      setSecondsPerQuestion(editingConfig.secondsPerQuestion);
-    } else if (subjects.length > 0 && !selectedSubjectId) {
-      setSelectedSubjectId(subjects[0].id);
-    }
-  }, [editingConfig, subjects, selectedSubjectId]);
-
-  const currentSubject = useMemo(
-    () => subjects.find((s) => s.id === selectedSubjectId) ?? subjects[0],
-    [subjects, selectedSubjectId],
+  const [selectedTopic, setSelectedTopic] = useState(
+    () => editingConfig?.topicName ?? ""
+  );
+  const [dailyCount, setDailyCount] = useState(
+    () => editingConfig?.dailyCount ?? 20
+  );
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState(
+    () => editingConfig?.secondsPerQuestion ?? 45
   );
 
-  const topicsList = useMemo(() => currentSubject?.topics ?? [], [currentSubject]);
+  // Active subject resolution
+  const activeSubjectId = selectedSubjectId || (subjects[0]?.id ?? "");
+  const currentSubject = subjects.find((s) => s.id === activeSubjectId) ?? subjects[0];
+  const topicsList = currentSubject?.topics ?? [];
 
   const handleSubjectChange = (newSubjId: string) => {
     setSelectedSubjectId(newSubjId);
@@ -80,14 +106,12 @@ export function DailyTargetSetup({
   const handleSave = () => {
     if (!currentSubject) return;
 
-    const count = customCount ? Math.max(5, Math.min(100, Number.parseInt(customCount, 10) || 30)) : dailyCount;
-
     const saved = upsertTargetConfig({
       id: editingConfig?.id,
       subjectId: currentSubject.id,
       subjectName: currentSubject.name,
       topicName: selectedTopic,
-      dailyCount: count,
+      dailyCount,
       secondsPerQuestion,
     });
 
@@ -95,11 +119,9 @@ export function DailyTargetSetup({
     onClose();
   };
 
-  if (!open) return null;
-
   return (
     <Sheet onClose={onClose} title="টার্গেট কনফিগার">
-      <div className="space-y-4 pt-1 pb-6">
+      <div className="space-y-4 pt-1 pb-4">
         {/* Subject Selection */}
         <div>
           <label className="block text-[13px] font-semibold text-secondary">
@@ -112,7 +134,7 @@ export function DailyTargetSetup({
               <p className="text-[13px] text-tertiary">কোনো বিষয় পাওয়া যায়নি।</p>
             ) : (
               <select
-                value={selectedSubjectId}
+                value={activeSubjectId}
                 onChange={(e) => handleSubjectChange(e.target.value)}
                 className="w-full rounded-xl border border-separator bg-surface px-3.5 py-2.5 text-[15px] font-medium text-label focus:border-tint focus:outline-none"
               >
@@ -126,49 +148,48 @@ export function DailyTargetSetup({
           </div>
         </div>
 
-        {/* Topic Selection */}
-        <div>
-          <label className="block text-[13px] font-semibold text-secondary">
-            টপিক
-          </label>
-          <div className="mt-1.5">
-            <select
-              value={selectedTopic}
-              onChange={(e) => setSelectedTopic(e.target.value)}
-              className="w-full rounded-xl border border-separator bg-surface px-3.5 py-2.5 text-[15px] font-medium text-label focus:border-tint focus:outline-none"
-            >
-              <option value="">
-                সব টপিক ({currentSubject ? formatNumber(currentSubject.total_questions) : 0}টি প্রশ্ন)
-              </option>
-              {topicsList.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name} ({formatNumber(t.total_questions)}টি প্রশ্ন)
+        {/* Topic Selection - only show if subject has topics */}
+        {topicsList.length > 0 && (
+          <div>
+            <label className="block text-[13px] font-semibold text-secondary">
+              টপিক
+            </label>
+            <div className="mt-1.5">
+              <select
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                className="w-full rounded-xl border border-separator bg-surface px-3.5 py-2.5 text-[15px] font-medium text-label focus:border-tint focus:outline-none"
+              >
+                <option value="">
+                  সব টপিক ({currentSubject ? formatNumber(currentSubject.total_questions) : 0}টি প্রশ্ন)
                 </option>
-              ))}
-            </select>
+                {topicsList.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.name} ({formatNumber(t.total_questions)}টি প্রশ্ন)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Daily Questions Count */}
+        {/* Daily Questions Count - Clean single row of 4 */}
         <div>
           <label className="block text-[13px] font-semibold text-secondary">
             প্রতিদিনের প্রশ্ন
           </label>
-          <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {COUNT_PRESETS.map((count) => {
-              const active = !customCount && dailyCount === count;
+          <div className="mt-1.5 grid grid-cols-4 gap-2">
+            {QUESTION_COUNTS.map((count) => {
+              const active = dailyCount === count;
               return (
                 <button
                   key={count}
                   type="button"
-                  onClick={() => {
-                    setDailyCount(count);
-                    setCustomCount("");
-                  }}
+                  onClick={() => setDailyCount(count)}
                   className={`flex h-10 items-center justify-center rounded-xl border text-[14px] font-semibold transition-all ${
                     active
                       ? "border-tint bg-tint text-white shadow-xs"
-                      : "border-separator bg-surface text-label hover:bg-fill"
+                      : "border-separator bg-surface text-label hover:bg-fill active:scale-95"
                   }`}
                 >
                   {formatNumber(count)}টি
@@ -176,38 +197,25 @@ export function DailyTargetSetup({
               );
             })}
           </div>
-
-          <div className="mt-2.5 flex items-center gap-2">
-            <span className="text-[12px] text-secondary">অন্য সংখ্যা:</span>
-            <input
-              type="number"
-              min={5}
-              max={100}
-              placeholder="২৫"
-              value={customCount}
-              onChange={(e) => setCustomCount(e.target.value)}
-              className="w-20 rounded-lg border border-separator bg-surface px-2 py-1 text-[13px] font-medium text-label focus:border-tint focus:outline-none"
-            />
-          </div>
         </div>
 
-        {/* Exam Timer Setting */}
+        {/* Timer Setting - Clean single row of 4 */}
         <div>
           <label className="block text-[13px] font-semibold text-secondary">
             টাইমার (প্রতি প্রশ্ন)
           </label>
           <div className="mt-1.5 grid grid-cols-4 gap-2">
-            {TIMER_PRESETS.map((t) => {
+            {TIMERS.map((t) => {
               const active = secondsPerQuestion === t.value;
               return (
                 <button
                   key={t.value}
                   type="button"
                   onClick={() => setSecondsPerQuestion(t.value)}
-                  className={`flex h-9 items-center justify-center rounded-xl border px-1 text-[12px] font-medium transition-all ${
+                  className={`flex h-10 items-center justify-center rounded-xl border text-[13px] font-medium transition-all ${
                     active
-                      ? "border-tint bg-tint/10 font-bold text-tint"
-                      : "border-separator bg-surface text-secondary hover:bg-fill"
+                      ? "border-tint bg-tint/10 font-bold text-tint shadow-xs"
+                      : "border-separator bg-surface text-secondary hover:bg-fill active:scale-95"
                   }`}
                 >
                   {t.label}
@@ -217,34 +225,27 @@ export function DailyTargetSetup({
           </div>
         </div>
 
-        {/* Topic Progress & Reset (if viewing active target) */}
+        {/* Topic Reset Option */}
         {onResetTopic && totalInTopic !== undefined && completedInTopic !== undefined && (
-          <div className="rounded-xl border border-separator/80 bg-fill/50 p-3 text-[13px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-label">
-                  পড়া সম্পন্ন: {formatNumber(completedInTopic)} / {formatNumber(totalInTopic)}টি
-                </p>
-                <p className="text-[11px] text-secondary mt-0.5">
-                  পড়া প্রশ্ন আর আসবে না
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onResetTopic();
-                  onClose();
-                }}
-                className="flex items-center gap-1 rounded-lg border border-ios-red/40 bg-ios-red/10 px-2.5 py-1 text-[12px] font-semibold text-ios-red hover:bg-ios-red/20 transition-colors"
-              >
-                <ResetIcon className="size-3" />
-                রিসেট
-              </button>
-            </div>
+          <div className="flex items-center justify-between rounded-xl border border-separator/60 bg-fill/40 px-3.5 py-2.5 text-[12.5px]">
+            <span className="text-secondary">
+              পড়া সম্পন্ন: <strong className="font-semibold text-label">{formatNumber(completedInTopic)}</strong> / {formatNumber(totalInTopic)}টি
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onResetTopic();
+                onClose();
+              }}
+              className="inline-flex items-center gap-1 font-semibold text-ios-red hover:underline"
+            >
+              <ResetIcon className="size-3" />
+              রিসেট
+            </button>
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Save Button */}
         <div className="pt-2">
           <button
             type="button"

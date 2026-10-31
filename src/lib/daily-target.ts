@@ -192,10 +192,14 @@ export function upsertTargetConfig(config: Omit<DailyTargetConfig, "id" | "creat
   const now = Date.now();
 
   const existingIndex = configs.findIndex((c) => c.id === id);
+  const existing = existingIndex >= 0 ? configs[existingIndex] : null;
+  const changedSubjectOrTopic =
+    existing && (existing.subjectId !== config.subjectId || existing.topicName !== config.topicName);
+
   const updated: DailyTargetConfig = {
     ...config,
     id,
-    createdAt: existingIndex >= 0 ? configs[existingIndex].createdAt : now,
+    createdAt: existing ? existing.createdAt : now,
   };
 
   if (existingIndex >= 0) {
@@ -206,6 +210,12 @@ export function upsertTargetConfig(config: Omit<DailyTargetConfig, "id" | "creat
 
   saveTargetConfigs(configs);
   setActiveConfigId(id);
+
+  // If the target's subject or topic changed, reset today's session so new questions are loaded
+  if (changedSubjectOrTopic) {
+    saveTodaySession(null);
+  }
+
   return updated;
 }
 
