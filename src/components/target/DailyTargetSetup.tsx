@@ -145,24 +145,26 @@ export function DailyTargetSetup({
                       </div>
                     </div>
 
-                    {/* Daily Questions Count */}
-                    <div>
-                        <label className="block text-[13px] font-semibold text-secondary">
-                          প্রতিদিনের প্রশ্ন
-                        </label>
-                          <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                            {COUNT_PRESETS.map((count) => {
-                              const active = !customCount && dailyCount === count;
-                              return (
-                                <button
-                                  key={count}
-                                  type="button"
-                                  onClick={() => {
-                                    setDailyCount(count);
-                                    setCustomCount("");
-                                  }}
-                                          ? "border-tint bg-tint text-white shadow-xs"
-                                          : "border-separator bg-surface text-label hover:bg-fill"
+        {/* Daily Questions Count */}
+        <div>
+          <label className="block text-[13px] font-semibold text-secondary">
+            প্রতিদিনের প্রশ্ন
+          </label>
+          <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {COUNT_PRESETS.map((count) => {
+              const active = !customCount && dailyCount === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => {
+                    setDailyCount(count);
+                    setCustomCount("");
+                  }}
+                  className={`flex h-10 items-center justify-center rounded-xl border text-[14px] font-semibold transition-all ${
+                    active
+                      ? "border-tint bg-tint text-white shadow-xs"
+                      : "border-separator bg-surface text-label hover:bg-fill"
                   }`}
                 >
                   {formatNumber(count)}টি
