@@ -117,3 +117,4 @@ export async function GET() {
     return failure("Failed to retrieve daily target metadata.", 500);
   }
 }
+

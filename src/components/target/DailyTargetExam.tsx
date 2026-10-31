@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatNumber, OPTION_LABELS } from "@/lib/format";
 import {
-  type DailyTargetQuestion,
   type DailyTargetSession,
   recordHistoryItem,
   saveTodaySession,
 } from "@/lib/daily-target";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, LightbulbIcon, ResetIcon, TimerIcon, XIcon } from "@/components/icons";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, LightbulbIcon, ResetIcon, XIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
 
 export function DailyTargetExam({
@@ -28,7 +27,6 @@ export function DailyTargetExam({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(() => session.examAnswers ?? {});
   const [isFinished, setIsFinished] = useState<boolean>(() => session.examScore !== null);
-  const [showNavSheet, setShowNavSheet] = useState(false);
 
   // Per-question timer
   const hasTimer = secondsPerQuestion > 0;
@@ -202,26 +200,26 @@ export function DailyTargetExam({
             <button
               type="button"
               onClick={handleRetake}
-              className="flex h-11 items-center gap-2 rounded-xl border border-separator bg-surface px-4 text-[14px] font-semibold text-label shadow-xs transition-all hover:bg-fill active:scale-95"
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-separator bg-surface px-3.5 text-[13px] font-semibold text-label shadow-xs transition-all hover:bg-fill active:scale-95"
             >
-              <ResetIcon className="size-4" />
-              পুনরায় পরীক্ষা দিন
+              <ResetIcon className="size-3.5" />
+              আবার পরীক্ষা
             </button>
 
             <button
               type="button"
               onClick={onBackToStudy}
-              className="flex h-11 items-center gap-2 rounded-xl bg-tint px-4 text-[14px] font-semibold text-white shadow transition-all hover:opacity-90 active:scale-95"
+              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4 text-[13px] font-semibold text-white shadow-xs transition-all hover:opacity-90 active:scale-95"
             >
-              📖 পড়া রিভিশন দিন
+              পড়ুন
             </button>
 
             <button
               type="button"
               onClick={onStartNextTarget}
-              className="flex h-11 items-center gap-2 rounded-xl border border-tint/30 bg-tint/10 px-4 text-[14px] font-semibold text-tint transition-all hover:bg-tint/20 active:scale-95"
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-tint/30 bg-tint/10 px-4 text-[13px] font-semibold text-tint transition-all hover:bg-tint/20 active:scale-95"
             >
-              🚀 পরবর্তী দিনের টার্গেট
+              পরের দিন
             </button>
           </div>
         </section>
@@ -240,13 +238,12 @@ export function DailyTargetExam({
             return (
               <article
                 key={q.key}
-                className={`overflow-hidden rounded-2xl border p-4 shadow-xs backdrop-blur-md transition-all ${
-                  isSkipped
+                className={`overflow-hidden rounded-2xl border p-4 shadow-xs backdrop-blur-md transition-all ${isSkipped
                     ? "border-separator/80 bg-surface/70"
                     : isCorrect
-                    ? "border-ios-green/30 bg-ios-green/4"
-                    : "border-ios-red/30 bg-ios-red/4"
-                }`}
+                      ? "border-ios-green/30 bg-ios-green/4"
+                      : "border-ios-red/30 bg-ios-red/4"
+                  }`}
               >
                 <div className="flex items-center justify-between pb-2 border-b border-separator/40 text-[12px]">
                   <span className="font-bold text-tint">প্রশ্ন {formatNumber(idx + 1)}</span>
@@ -354,9 +351,9 @@ export function DailyTargetExam({
             <button
               type="button"
               onClick={handleFinish}
-              className="flex h-9 items-center gap-1.5 rounded-xl bg-tint px-3.5 text-[13px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-tint px-3 text-[13px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
             >
-              জমা দিন ({formatNumber(answeredCount)}/{formatNumber(total)})
+              জমা দিন
             </button>
           </div>
         </div>
@@ -397,16 +394,14 @@ export function DailyTargetExam({
                 key={i}
                 type="button"
                 onClick={() => selectOption(currentQ.key, option)}
-                className={`flex min-h-13 w-full items-center gap-3.5 rounded-xl border px-4 py-3 text-left text-[15px] transition-all cursor-pointer ${
-                  isSelected
+                className={`flex min-h-13 w-full items-center gap-3.5 rounded-xl border px-4 py-3 text-left text-[15px] transition-all cursor-pointer ${isSelected
                     ? "border-tint bg-tint/12 font-semibold text-tint ring-1 ring-tint"
                     : "border-separator bg-surface text-label hover:bg-fill active:scale-[0.99]"
-                }`}
+                  }`}
               >
                 <span
-                  className={`grid size-6 shrink-0 place-items-center rounded-lg text-[13px] font-bold ${
-                    isSelected ? "bg-tint text-white" : "bg-fill text-secondary"
-                  }`}
+                  className={`grid size-6 shrink-0 place-items-center rounded-lg text-[13px] font-bold ${isSelected ? "bg-tint text-white" : "bg-fill text-secondary"
+                    }`}
                 >
                   {OPTION_LABELS[i] ?? formatNumber(i + 1)}
                 </span>
@@ -422,28 +417,28 @@ export function DailyTargetExam({
             type="button"
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="flex h-10 items-center gap-1.5 rounded-xl border border-separator bg-surface px-4 text-[13px] font-semibold text-secondary hover:text-label disabled:opacity-30"
+            className="flex h-9 items-center gap-1 rounded-xl border border-separator bg-surface px-3 text-[13px] font-semibold text-secondary hover:text-label disabled:opacity-30"
           >
             <ChevronLeftIcon className="size-4 stroke-[2.5]" />
-            পূর্ববর্তী
+            আগের
           </button>
 
           {currentIndex === total - 1 ? (
             <button
               type="button"
               onClick={handleFinish}
-              className="flex h-10 items-center gap-1.5 rounded-xl bg-ios-green px-5 text-[14px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
+              className="flex h-9 items-center gap-1 rounded-xl bg-ios-green px-4 text-[13px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
             >
               <CheckIcon className="size-4 stroke-[2.5]" />
-              পরীক্ষা সম্পন্ন করুন
+              জমা দিন
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setCurrentIndex((i) => Math.min(total - 1, i + 1))}
-              className="flex h-10 items-center gap-1.5 rounded-xl bg-tint px-4 text-[13px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
+              className="flex h-9 items-center gap-1 rounded-xl bg-tint px-3.5 text-[13px] font-semibold text-white shadow-sm hover:opacity-90 active:scale-95"
             >
-              পরবর্তী
+              পরের
               <ChevronRightIcon className="size-4 stroke-[2.5]" />
             </button>
           )}
@@ -462,13 +457,12 @@ export function DailyTargetExam({
                   key={q.key}
                   type="button"
                   onClick={() => setCurrentIndex(idx)}
-                  className={`size-8 rounded-lg text-[13px] font-bold transition-all ${
-                    active
+                  className={`size-8 rounded-lg text-[13px] font-bold transition-all ${active
                       ? "ring-2 ring-tint bg-tint text-white"
                       : answered
-                      ? "bg-tint/20 text-tint"
-                      : "bg-fill text-secondary hover:text-label"
-                  }`}
+                        ? "bg-tint/20 text-tint"
+                        : "bg-fill text-secondary hover:text-label"
+                    }`}
                 >
                   {formatNumber(idx + 1)}
                 </button>

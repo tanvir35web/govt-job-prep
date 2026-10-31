@@ -155,3 +155,4 @@ export async function GET(request: NextRequest) {
     return failure("Failed to retrieve questions for daily target.", 500);
   }
 }
+

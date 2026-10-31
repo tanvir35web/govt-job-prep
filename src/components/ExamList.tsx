@@ -13,6 +13,7 @@ import { CheckIcon, ChevronRightIcon, CircleCheckIcon, ExamPaperIcon, SearchIcon
 import { OfflineBadge } from "./OfflineBadge";
 import { Ring } from "./Ring";
 import { ErrorState, Skeleton } from "./StatusViews";
+import { DailyTargetHero } from "./target/DailyTargetHero";
 
 const ALL = "__all__";
 
@@ -83,6 +84,8 @@ export function ExamList() {
   return (
     <main className="px-safe mx-auto w-full max-w-3xl flex-1 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4">
       <HomeHeader />
+
+      {!filtering && <DailyTargetHero className="mb-5" />}
 
       <SearchField value={query} onChange={setQuery} />
 

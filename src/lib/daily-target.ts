@@ -60,10 +60,10 @@ export type DailyTargetHistoryItem = {
 
 export const COUNT_PRESETS = [15, 20, 25, 30, 40, 50] as const;
 export const TIMER_PRESETS = [
-  { value: 0, label: "টাইমার ছাড়া (Untimed)" },
-  { value: 30, label: "৩০ সেকেন্ড / প্রশ্ন" },
-  { value: 45, label: "৪৫ সেকেন্ড / প্রশ্ন" },
-  { value: 60, label: "৬০ সেকেন্ড / প্রশ্ন" },
+  { value: 0, label: "টাইমার ছাড়া" },
+  { value: 30, label: "৩০ সে." },
+  { value: 45, label: "৪৫ সে." },
+  { value: 60, label: "৬০ সে." },
 ] as const;
 
 const CONFIGS_KEY = "daily-target-configs";
@@ -75,11 +75,18 @@ const HISTORY_KEY = "daily-target-history";
 
 const CHANGE_EVENT = "daily-target-change";
 
-export function dispatchTargetChange() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }
-}
+// Static server snapshots (immutable constants to prevent SSR re-render loops)
+const SERVER_STREAK: DailyStreak = Object.freeze({ current: 0, best: 0, lastCompletedDate: null });
+const SERVER_CONFIGS: DailyTargetConfig[] = [];
+const SERVER_COMPLETED_KEYS: Set<string> = new Set();
+
+// Client in-memory cache to guarantee referential stability for useSyncExternalStore
+let cachedConfigs: DailyTargetConfig[] = [];
+let cachedActiveConfig: DailyTargetConfig | null = null;
+let cachedSession: DailyTargetSession | null = null;
+let cachedStreak: DailyStreak = SERVER_STREAK;
+let cachedCompletedKeys: Set<string> = SERVER_COMPLETED_KEYS;
+let isCacheInitialized = false;
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -88,6 +95,31 @@ function readJson<T>(key: string, fallback: T): T {
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
+  }
+}
+
+export function refreshStoreCache() {
+  if (typeof window === "undefined") return;
+  cachedConfigs = readJson<DailyTargetConfig[]>(CONFIGS_KEY, []);
+  const activeId = localStorage.getItem(ACTIVE_CONFIG_ID_KEY);
+  cachedActiveConfig = cachedConfigs.find((c) => c.id === activeId) ?? cachedConfigs[0] ?? null;
+  cachedSession = readJson<DailyTargetSession | null>(SESSION_KEY, null);
+  cachedStreak = readJson<DailyStreak>(STREAK_KEY, SERVER_STREAK);
+  const completedArr = readJson<string[]>(COMPLETED_KEYS_KEY, []);
+  cachedCompletedKeys = new Set(completedArr);
+  isCacheInitialized = true;
+}
+
+function ensureCacheInitialized() {
+  if (!isCacheInitialized && typeof window !== "undefined") {
+    refreshStoreCache();
+  }
+}
+
+export function dispatchTargetChange() {
+  if (typeof window !== "undefined") {
+    refreshStoreCache();
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }
 }
 
@@ -124,7 +156,8 @@ export function isYesterday(dateStr: string): boolean {
 // ---- Configs Management
 
 export function loadTargetConfigs(): DailyTargetConfig[] {
-  return readJson<DailyTargetConfig[]>(CONFIGS_KEY, []);
+  ensureCacheInitialized();
+  return typeof window !== "undefined" && isCacheInitialized ? cachedConfigs : readJson<DailyTargetConfig[]>(CONFIGS_KEY, []);
 }
 
 export function saveTargetConfigs(configs: DailyTargetConfig[]) {
@@ -143,6 +176,10 @@ export function setActiveConfigId(id: string) {
 }
 
 export function getActiveTargetConfig(): DailyTargetConfig | null {
+  ensureCacheInitialized();
+  if (typeof window !== "undefined" && isCacheInitialized) {
+    return cachedActiveConfig;
+  }
   const configs = loadTargetConfigs();
   if (configs.length === 0) return null;
   const activeId = loadActiveConfigId();
@@ -189,8 +226,8 @@ export function deleteTargetConfig(id: string) {
 // ---- Completed Questions Tracking ("পড়া হয়ে গেলে আর আসবে না")
 
 export function loadCompletedQuestionKeys(): Set<string> {
-  const arr = readJson<string[]>(COMPLETED_KEYS_KEY, []);
-  return new Set(arr);
+  ensureCacheInitialized();
+  return typeof window !== "undefined" && isCacheInitialized ? cachedCompletedKeys : SERVER_COMPLETED_KEYS;
 }
 
 export function saveCompletedQuestionKeys(keys: Set<string> | string[]) {
@@ -230,10 +267,8 @@ export function resetSubjectOrTopicProgress(subjectId: string, topicName?: strin
 // ---- Today's Session
 
 export function loadTodaySession(): DailyTargetSession | null {
-  const session = readJson<DailyTargetSession | null>(SESSION_KEY, null);
-  if (!session) return null;
-  // If stored session is from a previous date, user can complete it or start fresh
-  return session;
+  ensureCacheInitialized();
+  return typeof window !== "undefined" && isCacheInitialized ? cachedSession : readJson<DailyTargetSession | null>(SESSION_KEY, null);
 }
 
 export function saveTodaySession(session: DailyTargetSession | null) {
@@ -284,7 +319,8 @@ export function generateDailySession(
 // ---- Streak & History
 
 export function loadStreak(): DailyStreak {
-  return readJson<DailyStreak>(STREAK_KEY, { current: 0, best: 0, lastCompletedDate: null });
+  ensureCacheInitialized();
+  return typeof window !== "undefined" && isCacheInitialized ? cachedStreak : readJson<DailyStreak>(STREAK_KEY, SERVER_STREAK);
 }
 
 export function updateStreakOnDayComplete(dateStr = getTodayDateString()): DailyStreak {
@@ -327,20 +363,37 @@ export function recordHistoryItem(item: Omit<DailyTargetHistoryItem, "id">) {
 // ---- External Store Hook for Reactive Updates
 
 function subscribe(callback: () => void) {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener(CHANGE_EVENT, callback);
-  window.addEventListener("storage", callback);
+  if (typeof window === "undefined") return () => { };
+  const handler = () => {
+    refreshStoreCache();
+    callback();
+  };
+  window.addEventListener(CHANGE_EVENT, handler);
+  window.addEventListener("storage", handler);
   return () => {
-    window.removeEventListener(CHANGE_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    window.removeEventListener(CHANGE_EVENT, handler);
+    window.removeEventListener("storage", handler);
   };
 }
 
-export function useDailyTargetState() {
-  const activeConfig = useSyncExternalStore(subscribe, getActiveTargetConfig, () => null);
-  const session = useSyncExternalStore(subscribe, loadTodaySession, () => null);
-  const streak = useSyncExternalStore(subscribe, loadStreak, () => ({ current: 0, best: 0, lastCompletedDate: null }));
-  const configs = useSyncExternalStore(subscribe, loadTargetConfigs, () => []);
+const getServerActiveConfig = () => null;
+const getServerSession = () => null;
+const getServerStreak = () => SERVER_STREAK;
+const getServerConfigs = () => SERVER_CONFIGS;
+const getServerCompletedKeys = () => SERVER_COMPLETED_KEYS;
 
-  return { activeConfig, session, streak, configs };
+const getActiveConfigSnapshot = () => (ensureCacheInitialized(), cachedActiveConfig);
+const getSessionSnapshot = () => (ensureCacheInitialized(), cachedSession);
+const getStreakSnapshot = () => (ensureCacheInitialized(), cachedStreak);
+const getConfigsSnapshot = () => (ensureCacheInitialized(), cachedConfigs);
+const getCompletedKeysSnapshot = () => (ensureCacheInitialized(), cachedCompletedKeys);
+
+export function useDailyTargetState() {
+  const activeConfig = useSyncExternalStore(subscribe, getActiveConfigSnapshot, getServerActiveConfig);
+  const session = useSyncExternalStore(subscribe, getSessionSnapshot, getServerSession);
+  const streak = useSyncExternalStore(subscribe, getStreakSnapshot, getServerStreak);
+  const configs = useSyncExternalStore(subscribe, getConfigsSnapshot, getServerConfigs);
+  const completedKeys = useSyncExternalStore(subscribe, getCompletedKeysSnapshot, getServerCompletedKeys);
+
+  return { activeConfig, session, streak, configs, completedKeys };
 }

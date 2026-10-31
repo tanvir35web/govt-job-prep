@@ -43,7 +43,7 @@ export function DailyTargetHero({ className = "" }: { className?: string }) {
                   className="flex h-9 items-center gap-1.5 rounded-xl bg-tint px-3.5 text-[13px] font-semibold text-white shadow transition-all hover:opacity-90 active:scale-95"
                 >
                   <TargetIcon className="size-4" />
-                  টার্গেট সেট করুন
+                  সেট করুন
                 </button>
               </div>
             </div>
@@ -147,19 +147,18 @@ export function DailyTargetHero({ className = "" }: { className?: string }) {
             className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-tint px-3 text-[13px] font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
           >
             <PlayIcon className="size-3.5 fill-current" />
-            {isDoneStudying ? "পড়া রিভিশন করুন" : "পড়া শুরু করুন"}
+            {isDoneStudying ? "রিভিশন" : "পড়ুন"}
           </AppLink>
 
           <AppLink
             href="/target?tab=exam"
-            className={`flex h-9 items-center justify-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-transform active:scale-[0.98] ${
-              isDoneStudying
+            className={`flex h-9 items-center justify-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-transform active:scale-[0.98] ${isDoneStudying
                 ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 shadow-sm"
                 : "border-separator bg-surface text-secondary hover:bg-fill"
-            }`}
+              }`}
           >
             <TimerIcon className="size-3.5 stroke-[2.2]" />
-            পরীক্ষা দিন
+            পরীক্ষা
           </AppLink>
         </div>
       </section>
@@ -172,3 +171,4 @@ export function DailyTargetHero({ className = "" }: { className?: string }) {
     </>
   );
 }
+

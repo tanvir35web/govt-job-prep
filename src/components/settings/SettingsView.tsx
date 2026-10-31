@@ -18,7 +18,8 @@ import { BANGLA_FONTS, type BanglaFont, type Theme, clearAllAnswers, defaultMode
 import type { ExamListResponse } from "@/lib/types";
 import { CURRENT_BUILD, type UpdateCheck, applyUpdate, checkForUpdate } from "@/lib/update";
 import { useApi } from "@/lib/use-api";
-import { BookOpenIcon, ChevronDownIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon } from "../icons";
+import { BookOpenIcon, ChevronDownIcon, CircleCheckIcon, GlobeIcon, LinkedInIcon, MonitorIcon, ResetIcon, ShareIcon, SquarePlusIcon, SunIcon, SunMoonIcon, TargetIcon } from "../icons";
+import { useDailyTargetState } from "@/lib/daily-target";
 import { PageTitle } from "../PageTitle";
 import { ButtonRow, CustomRow, Section, SwitchRow, ValueRow } from "./SettingsList";
 
@@ -35,6 +36,7 @@ export function SettingsView() {
       <AppearanceSection />
       <FontSection />
       <PracticeSection />
+      <TargetSection />
       <OfflineSection />
       <UpdateSection />
       <InstallSection />
@@ -150,6 +152,32 @@ function PracticeSection() {
         onChange={(on) => defaultModeSetting.set(on ? "study" : "practice")}
       />
       <ButtonRow icon={<ResetIcon className="size-5" />} label="Clear all answers" destructive onClick={clear} />
+    </Section>
+  );
+}
+
+// ---- Daily Target
+
+function TargetSection() {
+  const router = useRouter();
+  const { activeConfig, streak } = useDailyTargetState();
+
+  return (
+    <Section
+      title="Daily Target"
+      footer="প্রতিদিনের পড়ার লক্ষ্য পূরণ করে ধারাবাহিক প্রস্তুতি বজায় রাখুন।"
+    >
+      <ButtonRow
+        icon={<TargetIcon className="size-5 text-tint" />}
+        label="দৈনিক পড়ার লক্ষ্য"
+        detail={
+          activeConfig
+            ? `${activeConfig.subjectName} · প্রতিদিন ${formatNumber(activeConfig.dailyCount)}টি প্রশ্ন`
+            : "টার্গেট নির্ধারণ করুন"
+        }
+        value={streak.current > 0 ? `🔥 ${formatNumber(streak.current)} দিন` : undefined}
+        onClick={() => router.push("/target")}
+      />
     </Section>
   );
 }

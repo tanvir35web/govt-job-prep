@@ -15,6 +15,7 @@ import { OfflineBadge } from "../OfflineBadge";
 import { PageTitle } from "../PageTitle";
 import { Ring } from "../Ring";
 import { ErrorState, Skeleton } from "../StatusViews";
+import { DailyTargetHero } from "../target/DailyTargetHero";
 import { answeredByTopic, studyHref, topicHref } from "./links";
 import { ReelsLink } from "./StudyReels";
 
@@ -144,6 +145,7 @@ function SubjectList({ active = true }: { active?: boolean }) {
     <main className={MAIN_CLASS}>
       {active && <title>Study | Govt Job Prep</title>}
       <PageTitle title="Study" trailing={<OfflineBadge />} />
+      {!q && <DailyTargetHero className="mb-5" />}
       <SearchField value={query} onChange={setQuery} placeholder="Search subjects or topics" />
 
       {state.status === "loading" && <ListSkeleton rows={4} />}
